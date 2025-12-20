@@ -8,7 +8,7 @@ function PageWrapper({ children }) {
       exit={{ opacity: 0, y: -10 }}
       transition={{
         duration: 0.4,
-        delay: 0.15, // ⏳ PAGE DELAY HERE
+        delay: 0.5, // ⏳ PAGE DELAY HERE
         ease: "easeInOut",
       }}
     >

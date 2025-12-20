@@ -1,15 +1,16 @@
+// src/main.jsx
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import ScrollToTop from "./components/ScrollToTop.jsx";
+import App from "./app";
+import ScrollToTop from "./components/ScrollToTop";
 import "./index.css";
-import Navbar from "./Navbar.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
       <ScrollToTop />
-      <Navbar />
+      <App />
     </BrowserRouter>
   </StrictMode>
 );

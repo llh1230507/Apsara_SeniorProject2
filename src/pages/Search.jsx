@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import products from "./assets/productsData";
+import products from "../assets/productsData";
 
 function ResultCard({ p }) {
   const link =
