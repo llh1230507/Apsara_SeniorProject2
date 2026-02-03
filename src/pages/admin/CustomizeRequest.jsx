@@ -21,7 +21,7 @@ const MOCK_REQUESTS = [
   },
 ];
 
-export default function Customize_Request() {
+export default function CustomizeRequest() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState({});

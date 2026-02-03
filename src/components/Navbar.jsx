@@ -2,9 +2,21 @@ import { FaSearch, FaShoppingCart, FaHeart } from "react-icons/fa";
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import SearchOverlay from "../components/SearchOverlay";
+import CartDrawer from "../components/CartDrawer";
+import { useCart } from "../context/CartContext";
 
 function Navbar() {
+  const [cartOpen, setCartOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const { cartItems } = useCart();
+const cartCount = cartItems.reduce(
+  (sum, item) => sum + item.quantity,
+  0
+);
+  
+
+  const favoritesCount =
+    JSON.parse(localStorage.getItem("favorites"))?.length || 0;
 
   const dropdownLinkClass = ({ isActive }) =>
     `flex items-center gap-4 px-4 py-3 ${
@@ -40,51 +52,72 @@ function Navbar() {
               <ul className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border shadow-lg rounded-md w-64 py-2">
                 <li>
                   <NavLink to="/products/wood" className={dropdownLinkClass}>
-                    <img src="/product1.jpg" alt="Wood" className="w-16 h-16 rounded" />
+                    <img
+                      src="/product1.jpg"
+                      alt="Wood"
+                      className="w-16 h-16 rounded"
+                    />
                     Wood
                   </NavLink>
                 </li>
                 <li>
                   <NavLink to="/products/stone" className={dropdownLinkClass}>
-                    <img src="/product2.jpg" alt="Stone" className="w-16 h-16 rounded" />
+                    <img
+                      src="/2.jpg"
+                      alt="Stone"
+                      className="w-16 h-16 rounded"
+                    />
                     Stone
                   </NavLink>
                 </li>
                 <li>
-                  <NavLink to="/products/metal" className={dropdownLinkClass}>
-                    <img src="/product3.jpg" alt="Metal" className="w-16 h-16 rounded" />
-                    Metal
+                  <NavLink to="/products/furniture" className={dropdownLinkClass}>
+                    <img
+                      src="/product3.jpg"
+                      alt="furniture"
+                      className="w-16 h-16 rounded"
+                    />
+                    Furniture
                   </NavLink>
                 </li>
               </ul>
             </li>
 
             <li>
-              <NavLink to="/customize" className={({ isActive }) =>
+              <NavLink
+                to="/customize"
+                className={({ isActive }) =>
                   `text-lg font-medium ${
                     isActive ? "text-red-600 font-semibold" : "text-gray-700"
                   } hover:text-red-600`
-                }>
+                }
+              >
                 Customize
               </NavLink>
             </li>
 
             <li>
-              <NavLink to="/about" className={({ isActive }) =>
+              <NavLink
+                to="/about"
+                className={({ isActive }) =>
                   `text-lg font-medium ${
                     isActive ? "text-red-600 font-semibold" : "text-gray-700"
                   } hover:text-red-600`
-                }>
+                }
+              >
                 About Us
               </NavLink>
             </li>
 
             <li>
-              <NavLink to="/contact" className={({ isActive }) =>
+              <NavLink
+                to="/contact"
+                className={({ isActive }) =>
                   `text-lg font-medium ${
                     isActive ? "text-red-600 font-semibold" : "text-gray-700"
                   } hover:text-red-600`
-                }>
+                }
+              >
                 Contact
               </NavLink>
             </li>
@@ -96,14 +129,36 @@ function Navbar() {
               onClick={() => setSearchOpen(true)}
               className="cursor-pointer hover:text-red-600"
             />
-            <FaShoppingCart className="cursor-pointer hover:text-red-600" />
-            <FaHeart className="cursor-pointer hover:text-red-600" />
+            <div
+              className="relative cursor-pointer"
+              onClick={() => setCartOpen(true)}
+            >
+              <FaShoppingCart className="hover:text-red-600" />
+
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </div>
+
+            <NavLink to="/favorites" className="relative">
+              <FaHeart className="cursor-pointer hover:text-red-600" />
+
+              {favoritesCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                  {favoritesCount}
+                </span>
+              )}
+            </NavLink>
           </div>
         </div>
       </nav>
 
       {/* SEARCH OVERLAY */}
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+        <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+
     </>
   );
 }

@@ -10,18 +10,22 @@ import Products from "./pages/Products";
 import Customize from "./pages/Customize";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
-import Metal from "./pages/Metal";
+import Furniture from "./pages/Furniture";
 import Stone from "./pages/Stone";
 import Wood from "./pages/Wood";
 import ProductDetail from "./pages/ProductDetail";
 import Search from "./pages/Search";
+import Cart from "./pages/Cart";
+import Favorites from "./pages/Favorites";
+import Checkout from "./pages/Checkout";
+import OrderSuccess from "./pages/OrderSucess";
 
 // Pages (ADMIN)
 import Dashboard from "./pages/admin/Dashboard";
 import AdminLogin from "./pages/admin/AdminLogin";
 import Product from "./pages/admin/Product";
 import Orders from "./pages/admin/Orders";
-import Customize_Request from "./pages/admin/customize_request";
+import CustomizeRequest from "./pages/admin/CustomizeRequest";
 // Auth Guard
 import AdminRoute from "./components/AdminRoute";
 
@@ -35,11 +39,19 @@ function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/products/wood" element={<Wood />} />
         <Route path="/products/stone" element={<Stone />} />
-        <Route path="/products/metal" element={<Metal />} />
+        <Route path="/products/furniture" element={<Furniture />} />
         <Route path="/products/:category/:id" element={<ProductDetail />} />
         <Route path="/customize" element={<Customize />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/favorites" element={<Favorites />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/order-success" element={<OrderSuccess />} />
+
+
+        
+        
       </Route>
 
       {/* ================= ADMIN ================= */}
@@ -56,7 +68,7 @@ function App() {
         <Route index element={<Dashboard />} />
          <Route path="product" element={<Product />} />
         <Route path="orders" element={<Orders />} />  
-        <Route path="customize" element={<Customize_Request />} />
+        <Route path="customize" element={<CustomizeRequest />} />
       </Route>
     </Routes>
   );

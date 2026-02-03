@@ -1,0 +1,136 @@
+import { NavLink } from "react-router-dom";
+import { useCart } from "../context/CartContext";
+
+export default function CartDrawer({ isOpen, onClose }) {
+  const { cartItems, updateQuantity, removeFromCart } = useCart();
+
+  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0,
+  );
+
+  return (
+    <>
+      {/* Overlay */}
+      {isOpen && (
+        <div onClick={onClose} className="fixed inset-0 bg-black/40 z-40" />
+      )}
+
+      {/* Drawer */}
+      <div
+        className={`fixed top-0 right-0 h-full w-[380px] bg-white z-50 shadow-xl transform transition-transform duration-300 flex flex-col ${
+          isOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b">
+          <h2 className="text-xl font-semibold">
+            Your cart ({totalItems} items)
+          </h2>
+          <button onClick={onClose} className="text-2xl">
+            ×
+          </button>
+        </div>
+
+        {/* Items */}
+        <div
+          className={`p-12 flex-1 ${
+            !cartItems.length
+              ? "flex items-center justify-center"
+              : "space-y-6 overflow-y-auto"
+          }`}
+        >
+          {!cartItems.length && (
+            <div className="text-center space-y-4">
+              <p className="text-3xl font-bold mb-9">Your cart is empty</p>
+              <NavLink
+                to="/products"
+                onClick={onClose}
+                className="bg-red-700 text-white px-6 py-3 rounded"
+              >
+                Browse Products
+              </NavLink>
+            </div>
+          )}
+
+          {cartItems.map((item) => (
+            <div key={item.id} className="flex gap-4">
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                className="w-16 h-16 object-cover rounded"
+              />
+
+              <div className="flex-1">
+                <h3 className="font-medium">{item.name}</h3>
+                <p className="text-sm text-gray-500">
+                  ${item.price.toFixed(2)}
+                </p>
+
+                {/* Quantity */}
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={() => updateQuantity(item, -1)}
+                    className="border px-2"
+                  >
+                    −
+                  </button>
+                  <span>{item.quantity}</span>
+                  <button
+                    onClick={() => updateQuantity(item, 1)}
+                    className="border px-2"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => removeFromCart(item)}
+                  className="text-sm text-gray-500 underline mt-2"
+                >
+                  Remove item
+                </button>
+              </div>
+
+              <p className="font-medium">
+                ${(item.price * item.quantity).toFixed(2)}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        {cartItems.length > 0 && (
+          <div className="border-t p-6 space-y-4">
+            <div className="flex justify-between font-semibold">
+              <span>Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+
+            <p className="text-sm text-gray-500">
+              Shipping and discounts calculated at checkout.
+            </p>
+
+            <NavLink
+              to="/cart"
+              onClick={onClose}
+              className="block text-center border py-3 rounded"
+            >
+              Cart
+            </NavLink>
+
+            <NavLink
+              to="/checkout"
+              onClick={onClose}
+              className="block text-center bg-black text-white py-3 rounded"
+            >
+              Checkout
+            </NavLink>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

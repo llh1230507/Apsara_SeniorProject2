@@ -1,72 +1,207 @@
-import { useState } from "react";
 import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { useCart } from "../context/CartContext";
 
-function ProductDetail() {
+export default function ProductDetail() {
   const { category, id } = useParams();
+  const { addToCart } = useCart();
 
-  const product = {
-    id,
-    name: "Horse Sculpture",
-    category,
-    price: 120,
-    description: "Handcrafted traditional Apsara sculpture.",
-    images: {
-      black: "/DarkHorse.png",
-      brown: "/BrownHorse.png",
-      red: "/RedHorse.png",
-    },
-  };
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
 
-  const [selectedColor, setSelectedColor] = useState("black");
+
+  // Customization state
+  const [color, setColor] = useState("natural");
+  const [size, setSize] = useState("M");
+  const [material, setMaterial] = useState("standard");
+  const [quantity, setQuantity] = useState(1);
+
+
+  /* ---------- Fetch product ---------- */
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const ref = doc(db, "products", id);
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          setProduct({ id: snap.id, ...snap.data() });
+        }
+      } catch (err) {
+        console.error("Error loading product:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  // Check if product is already favorited
+useEffect(() => {
+  const favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+  setIsFavorite(favorites.some((item) => item.id === id));
+}, [id]);
+
+
+  if (loading) return <p className="p-8">Loading product...</p>;
+  if (!product) return <p className="p-8">Product not found</p>;
+
+  /* ---------- Price calculation ---------- */
+  const sizePrice = { S: 0, M: 20, L: 40 };
+  const materialPrice = { standard: 0, premium: 60 };
+
+  const finalPrice =
+    Number(product.price) +
+    sizePrice[size] +
+    materialPrice[material];
+
+ 
+
+
+  /* ---------- Add to cart ---------- */
+  const handleAddToCart = () => {
+  addToCart({
+  id: product.id,
+  name: product.name,
+  imageUrl: Object.values(product.images || {})[0],
+  price: finalPrice,
+  quantity,              // 🔥 REQUIRED
+  selectedColor: color,
+  selectedSize: size,
+  selectedMaterial: material,
+  category,
+});
+
+};
+
+
+  const toggleFavorite = () => {
+  const favorites = JSON.parse(localStorage.getItem("favorites")) || [];
+
+  if (isFavorite) {
+    const updated = favorites.filter((item) => item.id !== product.id);
+    localStorage.setItem("favorites", JSON.stringify(updated));
+    setIsFavorite(false);
+  } else {
+    localStorage.setItem(
+      "favorites",
+      JSON.stringify([...favorites, product])
+    );
+    setIsFavorite(true);
+  }
+};
+
 
   return (
-    <div className="max-w-5xl mx-auto p-8 grid md:grid-cols-2 gap-10">
+    <div className="p-8 grid grid-cols-2 gap-12">
+      {/* Image */}
       <div>
         <img
-          src={product.images[selectedColor]}
-          alt={product.name}
-          className="w-full h-[420px] object-cover rounded-xl shadow"
-        />
+  src={Object.values(product.images || {})[0]}
+  alt={product.name}
+  className="w-full h-[420px] object-cover rounded-xl shadow"
+/>
+
       </div>
 
-      <div>
-        <p className="text-sm text-gray-500 capitalize mb-1">
-          {product.category} sculpture
-        </p>
+      {/* Details */}
+      <div className="space-y-6">
+        <div className="flex items-start justify-between">
+  <div>
+    <h1 className="text-3xl font-bold">{product.name}</h1>
+    <p className="text-gray-600 capitalize">{category} sculpture</p>
+  </div>
 
-        <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
+  <button
+    onClick={toggleFavorite}
+    className="text-3xl transition hover:scale-110"
+    aria-label="Add to favorites"
+  >
+    {isFavorite ? "❤️" : "🤍"}
+  </button>
+</div>
 
-        <p className="text-xl text-red-700 font-semibold mb-4">
-          ${product.price}
-        </p>
 
-        <p className="text-gray-600 mb-6">{product.description}</p>
+        <p className="text-xl font-semibold text-red-700">
+  ${finalPrice * quantity}
+</p>
 
-        <div className="mb-6">
-          <p className="font-medium mb-2">Choose Color</p>
 
-          <div className="flex gap-4">
-            {Object.keys(product.images).map((color) => (
-              <button
-                key={color}
-                onClick={() => setSelectedColor(color)}
-                className={`w-10 h-10 rounded-full border-2 transition ${
-                  selectedColor === color
-                    ? "border-black scale-110"
-                    : "border-gray-300"
-                }`}
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </div>
+        {/* Color */}
+        <div>
+          <label className="font-medium block mb-2">Color</label>
+          <select
+            className="border px-3 py-2 rounded w-48"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+          >
+            <option value="natural">Natural</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
         </div>
 
-        <button className="bg-red-700 text-white px-6 py-3 rounded-lg hover:bg-red-800 transition">
+        {/* Size */}
+        <div>
+          <label className="font-medium block mb-2">Size</label>
+          <select
+            className="border px-3 py-2 rounded w-48"
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+          >
+            <option value="S">Small</option>
+            <option value="M">Medium (+$20)</option>
+            <option value="L">Large (+$40)</option>
+          </select>
+        </div>
+
+        {/* Material */}
+        <div>
+          <label className="font-medium block mb-2">Material</label>
+          <select
+            className="border px-3 py-2 rounded w-48"
+            value={material}
+            onChange={(e) => setMaterial(e.target.value)}
+          >
+            <option value="standard">Standard</option>
+            <option value="premium">Premium (+$60)</option>
+          </select>
+        </div>
+
+         {/* Quantity */}
+<div>
+  <label className="font-medium block mb-2">Quantity</label>
+  <div className="flex items-center gap-4">
+    <button
+      onClick={() => setQuantity(q => Math.max(1, q - 1))}
+      className="px-3 py-1 border rounded text-lg"
+    >
+      −
+    </button>
+
+    <span className="text-lg font-semibold">{quantity}</span>
+
+    <button
+      onClick={() => setQuantity(q => q + 1)}
+      className="px-3 py-1 border rounded text-lg"
+    >
+      +
+    </button>
+  </div>
+</div>
+
+        {/* Actions */}
+        <button
+          onClick={handleAddToCart}
+          className="bg-red-700 text-white px-6 py-3 rounded hover:bg-red-800 transition"
+        >
           Add to Cart
         </button>
       </div>
     </div>
   );
 }
-
-export default ProductDetail;
