@@ -4,7 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import UserLayout from "./layouts/UserLayout";
 import AdminLayout from "./layouts/AdminLayout";
 
-// Pages (USER)
+// USER pages
 import Home from "./pages/Home";
 import Products from "./pages/Products";
 import Customize from "./pages/Customize";
@@ -19,15 +19,20 @@ import Cart from "./pages/Cart";
 import Favorites from "./pages/Favorites";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSucess";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Profile from "./pages/Profile";
 
-// Pages (ADMIN)
+// ADMIN pages
 import Dashboard from "./pages/admin/Dashboard";
 import AdminLogin from "./pages/admin/AdminLogin";
 import Product from "./pages/admin/Product";
 import Orders from "./pages/admin/Orders";
 import CustomizeRequest from "./pages/admin/CustomizeRequest";
-// Auth Guard
-import AdminRoute from "./components/AdminRoute";
+
+// Route guards
+import ProtectedRoute from "./routes/ProtectedRoute";
+import AdminRoute from "./routes/AdminRoute";
 
 function App() {
   return (
@@ -46,12 +51,28 @@ function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/favorites" element={<Favorites />} />
-        <Route path="/checkout" element={<Checkout />} />
+
+        {/* 🔐 USER AUTH REQUIRED */}
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <Checkout />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/order-success" element={<OrderSuccess />} />
-
-
-        
-        
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
       </Route>
 
       {/* ================= ADMIN ================= */}
@@ -66,8 +87,8 @@ function App() {
         }
       >
         <Route index element={<Dashboard />} />
-         <Route path="product" element={<Product />} />
-        <Route path="orders" element={<Orders />} />  
+        <Route path="product" element={<Product />} />
+        <Route path="orders" element={<Orders />} />
         <Route path="customize" element={<CustomizeRequest />} />
       </Route>
     </Routes>

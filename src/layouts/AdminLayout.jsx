@@ -1,10 +1,14 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase";
 import AdminSidebar from "../components/admin/AdminSidebar";
 
 export default function AdminLayout() {
-  const handleLogout = () => {
-    localStorage.removeItem("isAdmin");
-    window.location.href = "/admin/login";
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    navigate("/admin/login");
   };
 
   return (
