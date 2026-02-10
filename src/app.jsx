@@ -10,18 +10,16 @@ import Products from "./pages/Products";
 import Customize from "./pages/Customize";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
-import Furniture from "./pages/Furniture";
-import Stone from "./pages/Stone";
-import Wood from "./pages/Wood";
 import ProductDetail from "./pages/ProductDetail";
 import Search from "./pages/Search";
 import Cart from "./pages/Cart";
 import Favorites from "./pages/Favorites";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSucess";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+
 import Profile from "./pages/Profile";
+import UserOrders from "./pages/UserOrders";
+import CategoryProducts from "./pages/CategoryProducts";
 
 // ADMIN pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -42,15 +40,14 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<Search />} />
         <Route path="/products" element={<Products />} />
-        <Route path="/products/wood" element={<Wood />} />
-        <Route path="/products/stone" element={<Stone />} />
-        <Route path="/products/furniture" element={<Furniture />} />
         <Route path="/products/:category/:id" element={<ProductDetail />} />
         <Route path="/customize" element={<Customize />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/favorites" element={<Favorites />} />
+        <Route path="/products/:category" element={<CategoryProducts />} />
+        
 
         {/* 🔐 USER AUTH REQUIRED */}
         <Route
@@ -70,9 +67,19 @@ function App() {
           }
         />
 
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <UserOrders />
+            </ProtectedRoute>
+          }
+        />
+
+
+
         <Route path="/order-success" element={<OrderSuccess />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        
       </Route>
 
       {/* ================= ADMIN ================= */}

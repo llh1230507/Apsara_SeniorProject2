@@ -56,7 +56,8 @@ export default function CartDrawer({ isOpen, onClose }) {
           )}
 
           {cartItems.map((item) => (
-            <div key={item.id} className="flex gap-4">
+            <div key={item.variantKey || `${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`}
+ className="flex gap-4">
               <img
                 src={item.imageUrl}
                 alt={item.name}

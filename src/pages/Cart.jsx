@@ -30,7 +30,8 @@ function Cart() {
 
       {cartItems.map((item) => (
         <div
-          key={item.id}
+          key={item.variantKey || `${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`}
+
           className="flex gap-6 bg-white p-5 rounded-xl shadow mb-6"
         >
           <img
@@ -42,7 +43,7 @@ function Cart() {
           <div className="flex-1">
             <h2 className="text-xl font-semibold">{item.name}</h2>
             <p className="text-sm text-gray-500">
-              {item.category} • {item.selectedColor} • {item.selectedSize}
+              {item.category} • {item.selectedColor} • {item.selectedSize} • {item.selectedMaterial}
             </p>
 
             <p className="text-red-700 font-semibold mt-1">${item.price}</p>

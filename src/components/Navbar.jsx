@@ -1,4 +1,9 @@
-import { FaSearch, FaShoppingCart, FaHeart } from "react-icons/fa";
+import {
+  FaSearch,
+  FaShoppingCart,
+  FaHeart,
+  FaUserCircle,
+} from "react-icons/fa";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import SearchOverlay from "../components/SearchOverlay";
@@ -6,19 +11,26 @@ import CartDrawer from "../components/CartDrawer";
 import { useAuth } from "../context/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
+import AuthModal from "../components/AuthModal";
+import { useFavorites } from "../context/FavoritesContext";
+import { useCart } from "../context/CartContext";
+
+
 
 function Navbar() {
   const [cartOpen, setCartOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const { cartItems } = useCart();
+
+const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
 
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const cart = JSON.parse(localStorage.getItem("cart")) || [];
-  const cartCount = cart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const { favoritesCount } = useFavorites();
 
-  const favoritesCount =
-    JSON.parse(localStorage.getItem("favorites"))?.length || 0;
 
   const dropdownLinkClass = ({ isActive }) =>
     `flex items-center gap-4 px-4 py-3 ${
@@ -55,20 +67,35 @@ function Navbar() {
               <ul className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border shadow-lg rounded-md w-64 py-2">
                 <li>
                   <NavLink to="/products/wood" className={dropdownLinkClass}>
-                    <img src="/product1.jpg" alt="Wood" className="w-16 h-16 rounded" />
+                    <img
+                      src="/product1.jpg"
+                      alt="Wood"
+                      className="w-16 h-16 rounded"
+                    />
                     Wood
                   </NavLink>
                 </li>
                 <li>
                   <NavLink to="/products/stone" className={dropdownLinkClass}>
-                    <img src="/product2.jpg" alt="Stone" className="w-16 h-16 rounded" />
+                    <img
+                      src="/2.jpg"
+                      alt="Stone"
+                      className="w-16 h-16 rounded"
+                    />
                     Stone
                   </NavLink>
                 </li>
                 <li>
-                  <NavLink to="/products/metal" className={dropdownLinkClass}>
-                    <img src="/product3.jpg" alt="Metal" className="w-16 h-16 rounded" />
-                    Metal
+                  <NavLink
+                    to="/products/furniture"
+                    className={dropdownLinkClass}
+                  >
+                    <img
+                      src="/product3.jpg"
+                      alt="Furniture"
+                      className="w-16 h-16 rounded"
+                    />
+                    Furniture
                   </NavLink>
                 </li>
               </ul>
@@ -145,34 +172,58 @@ function Navbar() {
 
             {/* Auth buttons */}
             {user ? (
-              <div className="flex items-center gap-3 text-sm">
-                <NavLink
-                  to="/profile"
-                  className="px-3 py-2 border rounded hover:bg-gray-50"
-                >
-                  Profile
-                </NavLink>
-                <button
-                  onClick={handleLogout}
-                  className="px-3 py-2 bg-black text-white rounded hover:opacity-90"
-                >
-                  Logout
-                </button>
+              <div className="relative group">
+                {/* Profile Icon */}
+                <FaUserCircle className="text-2xl cursor-pointer hover:text-red-600" />
+
+                {/* Dropdown */}
+                <div className="absolute right-0 top-full hidden group-hover:flex flex-col bg-white border shadow-lg rounded-md w-64 py-2">
+                  <NavLink
+                    to="/profile"
+                    className="block px-4 py-2 text-sm hover:bg-gray-100"
+                  >
+                    My Profile
+                  </NavLink>
+
+                  <NavLink
+                    to="/orders"
+                    className="block px-4 py-2 text-sm hover:bg-gray-100"
+                  >
+                    My Orders
+                  </NavLink>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
             ) : (
-              <NavLink
-                to="/login"
-                className="px-3 py-2 bg-black text-white rounded hover:opacity-90 text-sm"
-              >
-                Login
-              </NavLink>
+              <button
+  type="button"
+  onClick={() => {
+    console.log("LOGIN MODAL OPEN");
+    setAuthOpen(true);
+  }}
+  className="px-3 py-2 bg-black text-white rounded hover:opacity-90 text-sm"
+>
+  Login
+</button>
+
             )}
           </div>
         </div>
       </nav>
-
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        defaultMode="login"
+        redirectTo="/checkout"
+      />
     </>
   );
 }

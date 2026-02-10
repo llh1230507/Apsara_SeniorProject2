@@ -1,19 +1,12 @@
-import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useFavorites } from "../context/FavoritesContext";
 
 function Favorites() {
-  const [favorites, setFavorites] = useState([]);
+  const { favorites, removeFavorite, loadingFavorites } = useFavorites();
 
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("favorites")) || [];
-    setFavorites(stored);
-  }, []);
-
-  const removeFavorite = (id) => {
-    const updated = favorites.filter((item) => item.id !== id);
-    setFavorites(updated);
-    localStorage.setItem("favorites", JSON.stringify(updated));
-  };
+  if (loadingFavorites) {
+    return <p className="p-10 text-gray-500">Loading favorites...</p>;
+  }
 
   if (!favorites.length) {
     return (
@@ -30,41 +23,46 @@ function Favorites() {
     );
   }
 
+  const getId = (p) => p.id || p.productId;
+
   return (
     <div className="max-w-6xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-8">Your Favorites</h1>
 
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {favorites.map((item) => (
-          <div key={item.id} className="bg-white rounded-xl shadow p-4">
-            <img
-              src={Object.values(item.images || {})[0]}
-              alt={item.name}
-              className="h-48 w-full object-cover rounded-lg"
-            />
+        {favorites.map((item) => {
+          const id = getId(item);
+          return (
+            <div key={id} className="bg-white rounded-xl shadow p-4">
+              <img
+                src={Object.values(item.images || {})[0] || item.imageUrl}
+                alt={item.name}
+                className="h-48 w-full object-cover rounded-lg"
+              />
 
-            <h2 className="text-lg font-semibold mt-4">{item.name}</h2>
-            <p className="text-sm text-gray-500 capitalize">{item.category}</p>
+              <h2 className="text-lg font-semibold mt-4">{item.name}</h2>
+              <p className="text-sm text-gray-500 capitalize">{item.category}</p>
 
-            <p className="text-red-700 font-semibold mt-2">${item.price}</p>
+              <p className="text-red-700 font-semibold mt-2">${item.price}</p>
 
-            <div className="flex justify-between mt-4">
-              <NavLink
-                to={`/products/${item.category}/${item.id}`}
-                className="text-sm text-red-700 hover:underline"
-              >
-                View
-              </NavLink>
+              <div className="flex justify-between mt-4">
+                <NavLink
+                  to={`/products/${item.category}/${id}`}
+                  className="text-sm text-red-700 hover:underline"
+                >
+                  View
+                </NavLink>
 
-              <button
-                onClick={() => removeFavorite(item.id)}
-                className="text-sm text-gray-500 hover:text-red-600"
-              >
-                Remove
-              </button>
+                <button
+                  onClick={() => removeFavorite(id)}
+                  className="text-sm text-gray-500 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
