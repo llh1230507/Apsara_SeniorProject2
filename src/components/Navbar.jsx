@@ -4,24 +4,28 @@ import {
   FaHeart,
   FaUserCircle,
 } from "react-icons/fa";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import SearchOverlay from "../components/SearchOverlay";
 import CartDrawer from "../components/CartDrawer";
 import { useAuth } from "../context/AuthContext";
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import AuthModal from "../components/AuthModal";
 import { useFavorites } from "../context/FavoritesContext";
 import { useCart } from "../context/CartContext";
+import { useAuthModal } from "../context/AuthModalContext";
+
 
 
 
 function Navbar() {
-  const [cartOpen, setCartOpen] = useState(false);
+  const { isCartOpen, openCart, closeCart } = useCart();
   const [searchOpen, setSearchOpen] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
   const { cartItems } = useCart();
+  const location = useLocation();
+const { openAuth } = useAuthModal();
+
+
 
 const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
@@ -150,7 +154,7 @@ const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
 
             <div
               className="relative cursor-pointer"
-              onClick={() => setCartOpen(true)}
+              onClick={openCart}
               title="Cart"
             >
               <FaShoppingCart className="hover:text-red-600" />
@@ -203,27 +207,26 @@ const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
             ) : (
               <button
   type="button"
-  onClick={() => {
-    console.log("LOGIN MODAL OPEN");
-    setAuthOpen(true);
-  }}
+  onClick={() =>
+    openAuth({
+      mode: "login",
+      redirectTo: location.pathname + location.search, // ✅ stay here
+    })
+  }
   className="px-3 py-2 bg-black text-white rounded hover:opacity-90 text-sm"
 >
   Login
 </button>
+
+
 
             )}
           </div>
         </div>
       </nav>
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
-      <AuthModal
-        isOpen={authOpen}
-        onClose={() => setAuthOpen(false)}
-        defaultMode="login"
-        redirectTo="/checkout"
-      />
+      <CartDrawer isOpen={isCartOpen} onClose={closeCart} />
+      
     </>
   );
 }

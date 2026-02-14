@@ -1,8 +1,24 @@
 import { NavLink } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useAuthModal } from "../context/AuthModalContext";
+
 
 function Cart() {
   const { cartItems, updateQuantity, removeFromCart } = useCart();
+  const navigate = useNavigate();
+const { user } = useAuth();
+const { openAuth } = useAuthModal();
+
+const handleCheckout = () => {
+  if (!user) {
+    openAuth({ mode: "login", redirectTo: "/checkout" }); // ✅ only checkout forces /checkout
+    return;
+  }
+  navigate("/checkout");
+};
+
 
   const total = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -67,12 +83,12 @@ function Cart() {
       <div className="mt-8 flex justify-end flex-col items-end gap-4">
         <h2 className="text-xl font-bold">Total: ${total.toFixed(2)}</h2>
 
-        <NavLink
-          to="/checkout"
-          className="bg-red-700 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-800 transition"
-        >
-          Proceed to Checkout
-        </NavLink>
+        <button
+   onClick={handleCheckout}
+   className="bg-red-700 text-white px-8 py-3 rounded-lg font-semibold hover:bg-red-800 transition"
+ >
+   Proceed to Checkout
+</button>
       </div>
     </div>
   );

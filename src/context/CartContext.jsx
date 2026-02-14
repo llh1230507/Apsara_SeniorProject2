@@ -6,11 +6,12 @@ import {
   getDocs,
   onSnapshot,
   runTransaction,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "./AuthContext";
 
-const CartContext = createContext();
+const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
   const { user } = useAuth();
@@ -19,102 +20,172 @@ export function CartProvider({ children }) {
     JSON.parse(localStorage.getItem("cart")) || []
   );
 
-  // helper key (stable id for a variant)
+  const [cartLoading, setCartLoading] = useState(false);
+  const [cartReady, setCartReady] = useState(false);
+
+  // ✅ Cart Drawer UI State (NEW)
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const openCart = () => setIsCartOpen(true);
+  const closeCart = () => setIsCartOpen(false);
+
   const getKey = (item) =>
     item.variantKey ||
     `${item.id}|color=${item.selectedColor}|size=${item.selectedSize}|material=${item.selectedMaterial}`;
 
-  // ✅ Load cart from Firestore when user logs in
+  // ✅ helper: merge guest cart into firestore once on login
+  const syncLocalCartToFirestore = async (uid) => {
+    const local = JSON.parse(localStorage.getItem("cart")) || [];
+    if (!local.length) return;
+
+    await Promise.all(
+      local.map(async (item) => {
+        const key = getKey(item);
+        const ref = doc(db, "users", uid, "cart", key);
+
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          const currentQty = snap.exists()
+            ? Number(snap.data().quantity || 0)
+            : 0;
+          const addQty = Number(item.quantity || 0);
+
+          tx.set(
+            ref,
+            { ...item, variantKey: key, quantity: currentQty + addQty },
+            { merge: true }
+          );
+        });
+      })
+    );
+
+    localStorage.removeItem("cart");
+  };
+
+  /* =============================
+     🔥 On login: sync + subscribe
+  ============================== */
   useEffect(() => {
-  if (!user) return;
+    let unsub = null;
 
-  const colRef = collection(db, "users", user.uid, "cart");
+    const start = async () => {
+      if (!user) {
+        setCartLoading(false);
+        setCartReady(true);
+        setCartItems(JSON.parse(localStorage.getItem("cart")) || []);
+        return;
+      }
 
-  const unsub = onSnapshot(
-    colRef,
-    (snap) => {
-      const items = snap.docs.map((d) => ({ ...d.data(), variantKey: d.id }));
-      setCartItems(items);
-    },
-    (err) => console.error("Cart snapshot error:", err)
-  );
+      setCartLoading(true);
+      setCartReady(false);
 
-  return () => unsub();
-}, [user]);
+      await syncLocalCartToFirestore(user.uid);
 
+      const colRef = collection(db, "users", user.uid, "cart");
+      unsub = onSnapshot(
+        colRef,
+        (snap) => {
+          const items = snap.docs.map((d) => ({
+            ...d.data(),
+            variantKey: d.id,
+          }));
+          setCartItems(items);
+          setCartLoading(false);
+          setCartReady(true);
+        },
+        (err) => {
+          console.error("Cart snapshot error:", err);
+          setCartLoading(false);
+          setCartReady(true);
+        }
+      );
+    };
 
-  // ✅ Persist to localStorage ONLY when logged out
+    start();
+
+    return () => {
+      if (unsub) unsub();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+
+  /* =============================
+     💾 Persist guest cart only
+  ============================== */
   useEffect(() => {
     if (!user) {
       localStorage.setItem("cart", JSON.stringify(cartItems));
     }
   }, [cartItems, user]);
 
-  const addToCart = async (product) => {
-  const key = getKey(product);
+  /* =============================
+     ➕ Add to cart (OPEN DRAWER)
+  ============================== */
+  const addToCart = async (product, options = { openDrawer: true }) => {
+    const key = getKey(product);
 
-  // guest -> local
-  if (!user) {
+    // ✅ update UI immediately
     setCartItems((prev) => {
-      const existing = prev.find((item) => getKey(item) === key);
+      const existing = prev.find((i) => getKey(i) === key);
       if (existing) {
-        return prev.map((item) =>
-          getKey(item) === key
-            ? { ...item, quantity: item.quantity + product.quantity }
-            : item
+        return prev.map((i) =>
+          getKey(i) === key
+            ? {
+                ...i,
+                quantity:
+                  Number(i.quantity || 0) + Number(product.quantity || 0),
+              }
+            : i
         );
       }
       return [...prev, { ...product, variantKey: key }];
     });
-    return;
-  }
 
-  // logged-in -> Firestore (source of truth)
-  const ref = doc(db, "users", user.uid, "cart", key);
-
-  try {
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(ref);
-
-      if (!snap.exists()) {
-        tx.set(ref, { ...product, variantKey: key });
-        return;
-      }
-
-      const current = snap.data();
-      const nextQty = Number(current.quantity || 0) + Number(product.quantity || 0);
-
-      tx.set(ref, { ...current, ...product, variantKey: key, quantity: nextQty }, { merge: true });
-    });
-  } catch (e) {
-    console.error("addToCart transaction error:", e);
-  }
-};
-
-
-  const removeFromCart = async (targetItem) => {
-    const key = getKey(targetItem);
-
-    setCartItems((prev) => prev.filter((item) => getKey(item) !== key));
+    // ✅ OPEN CART DRAWER (NEW)
+    if (options?.openDrawer !== false) openCart();
 
     if (!user) return;
 
+    const ref = doc(db, "users", user.uid, "cart", key);
+
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const currentQty = snap.exists()
+          ? Number(snap.data().quantity || 0)
+          : 0;
+        const addQty = Number(product.quantity || 0);
+
+        tx.set(
+          ref,
+          { ...product, variantKey: key, quantity: currentQty + addQty },
+          { merge: true }
+        );
+      });
+    } catch (e) {
+      console.error("addToCart transaction error:", e);
+    }
+  };
+
+  const removeFromCart = async (targetItem) => {
+    const key = getKey(targetItem);
+    setCartItems((prev) => prev.filter((i) => getKey(i) !== key));
+
+    if (!user) return;
     await deleteDoc(doc(db, "users", user.uid, "cart", key));
   };
 
   const updateQuantity = async (targetItem, amount) => {
     const key = getKey(targetItem);
-
     let nextQty = 0;
 
     setCartItems((prev) =>
       prev
-        .map((item) => {
-          if (getKey(item) !== key) return item;
-          nextQty = item.quantity + amount;
-          return { ...item, quantity: nextQty };
+        .map((i) => {
+          if (getKey(i) !== key) return i;
+          nextQty = Number(i.quantity || 0) + amount;
+          return { ...i, quantity: nextQty };
         })
-        .filter((item) => item.quantity > 0)
+        .filter((i) => Number(i.quantity || 0) > 0)
     );
 
     if (!user) return;
@@ -141,8 +212,24 @@ export function CartProvider({ children }) {
   };
 
   const value = useMemo(
-    () => ({ cartItems, addToCart, removeFromCart, updateQuantity, clearCart }),
-    [cartItems]
+    () => ({
+      cartItems,
+      cartLoading,
+      cartReady,
+
+      // actions
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+
+      // ✅ drawer controls (NEW)
+      isCartOpen,
+      openCart,
+      closeCart,
+      setIsCartOpen, // optional
+    }),
+    [cartItems, cartLoading, cartReady, isCartOpen]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

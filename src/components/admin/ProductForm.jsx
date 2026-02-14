@@ -1,13 +1,19 @@
 // src/components/admin/ProductForm.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const DEFAULT_MATERIAL_PRICE = { standard: 0, premium: 60 };
 
 export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("wood");
   const [description, setDescription] = useState("");
+  
 
-  // Existing color->image map (base64)
+  // ✅ one-size product dimensions
+  const [size, setSize] = useState({ width: "", length: "", height: "" });
+
+  // color -> image map (base64 demo)
   const [images, setImages] = useState({});
   const [imageUrl, setImageUrl] = useState("");
 
@@ -15,18 +21,13 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
 
-  // ✅ NEW: 360 frames (URLs, one per line)
-  const [images360Text, setImages360Text] = useState("");
+  // ✅ material price
+  const [materialPrice, setMaterialPrice] = useState(DEFAULT_MATERIAL_PRICE);
 
-  // ✅ NEW: data-driven pricing maps (JSON)
-  const [sizePriceJson, setSizePriceJson] = useState(
-    JSON.stringify({ S: 0, M: 20, L: 40 }, null, 2)
-  );
-  const [materialPriceJson, setMaterialPriceJson] = useState(
-    JSON.stringify({ standard: 0, premium: 60 }, null, 2)
-  );
+  // ✅ 360 frames UI (rows)
+  const [images360, setImages360] = useState([""]);
 
-  const [jsonError, setJsonError] = useState("");
+  const [error, setError] = useState("");
 
   /* ---------- Load editing product ---------- */
   useEffect(() => {
@@ -40,25 +41,18 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
     setImages(editingProduct.images || {});
     setImageUrl(editingProduct.imageUrl || "");
 
-    // NEW fields (safe defaults)
-    setImages360Text((editingProduct.images360 || []).join("\n"));
+    setSize({
+      width: editingProduct.size?.width ?? "",
+      length: editingProduct.size?.length ?? "",
+      height: editingProduct.size?.height ?? "",
+    });
 
-    setSizePriceJson(
-      JSON.stringify(
-        editingProduct.sizePrice || { S: 0, M: 20, L: 40 },
-        null,
-        2
-      )
-    );
-    setMaterialPriceJson(
-      JSON.stringify(
-        editingProduct.materialPrice || { standard: 0, premium: 60 },
-        null,
-        2
-      )
-    );
+    setMaterialPrice(editingProduct.materialPrice || DEFAULT_MATERIAL_PRICE);
 
-    setJsonError("");
+    const frames = editingProduct.images360 || [];
+    setImages360(frames.length ? frames : [""]);
+
+    setError("");
     setPreview("");
     setFile(null);
     setColor("");
@@ -85,7 +79,7 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
     const updated = { ...images, [key]: file };
     setImages(updated);
 
-    // set first image as main image if none
+    // set first image as main if none
     if (!imageUrl) setImageUrl(file);
 
     setColor("");
@@ -95,61 +89,68 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
 
   const removeImage = (c) => {
     const updated = { ...images };
+    const removed = updated[c];
     delete updated[c];
-
     setImages(updated);
 
-    // if main image was removed, reset main to first remaining
-    if (imageUrl && images[c] === imageUrl) {
-      const nextMain = Object.values(updated)[0] || "";
-      setImageUrl(nextMain);
+    if (imageUrl && removed === imageUrl) {
+      setImageUrl(Object.values(updated)[0] || "");
     }
   };
+
+  /* ---------- 360 frames helpers ---------- */
+  const updateFrame = (idx, value) => {
+    setImages360((prev) => prev.map((v, i) => (i === idx ? value : v)));
+  };
+
+  const addFrameRow = () => setImages360((prev) => [...prev, ""]);
+  const removeFrameRow = (idx) =>
+    setImages360((prev) => prev.filter((_, i) => i !== idx));
+
+  const cleanedFrames = useMemo(
+    () => images360.map((s) => s.trim()).filter(Boolean),
+    [images360]
+  );
 
   /* ---------- Submit ---------- */
   const handleSubmit = (e) => {
     e.preventDefault();
-    setJsonError("");
+    setError("");
 
-    // Parse 360 URLs (one per line)
-    const images360 = images360Text
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    if (!name.trim()) return setError("Product name is required.");
+    if (price === "" || Number(price) < 0) return setError("Base price is invalid.");
 
-    // Parse pricing JSON with safe defaults
-    let sizePrice = { S: 0, M: 20, L: 40 };
-    let materialPrice = { standard: 0, premium: 60 };
-
-    try {
-      const parsedSize = JSON.parse(sizePriceJson);
-      if (parsedSize && typeof parsedSize === "object") sizePrice = parsedSize;
-    } catch {
-      setJsonError("Size price JSON is invalid. Please fix it.");
-      return;
-    }
-
-    try {
-      const parsedMaterial = JSON.parse(materialPriceJson);
-      if (parsedMaterial && typeof parsedMaterial === "object")
-        materialPrice = parsedMaterial;
-    } catch {
-      setJsonError("Material price JSON is invalid. Please fix it.");
-      return;
-    }
+    // ✅ one-size dims are optional, but if you want to require them, uncomment this:
+    // const w = Number(size.width || 0);
+    // const l = Number(size.length || 0);
+    // const h = Number(size.height || 0);
+    // if (w <= 0 || l <= 0 || h <= 0) return setError("Please fill Width/Length/Height > 0.");
 
     const productData = {
       name: name.trim(),
       price: Number(price),
       category,
       description,
+
+      // images
       imageUrl,
       images,
 
-      // ✅ NEW
-      images360,
-      sizePrice,
-      materialPrice,
+      // ✅ one-size dims
+      size: {
+        width: Number(size.width || 0),
+        length: Number(size.length || 0),
+        height: Number(size.height || 0),
+      },
+
+      // ✅ optional 360
+      images360: cleanedFrames,
+
+      // ✅ material pricing
+      materialPrice: {
+        standard: Number(materialPrice.standard || 0),
+        premium: Number(materialPrice.premium || 0),
+      },
     };
 
     if (editingProduct) {
@@ -165,113 +166,191 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
     setDescription("");
     setImages({});
     setImageUrl("");
-    setImages360Text("");
-    setSizePriceJson(JSON.stringify({ S: 0, M: 20, L: 40 }, null, 2));
-    setMaterialPriceJson(JSON.stringify({ standard: 0, premium: 60 }, null, 2));
-    setJsonError("");
+    setMaterialPrice(DEFAULT_MATERIAL_PRICE);
+    setImages360([""]);
+    setError("");
     setColor("");
     setFile(null);
     setPreview("");
+    setSize({ width: "", length: "", height: "" });
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white p-6 rounded shadow space-y-4"
-    >
+    <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow space-y-6">
       <h2 className="font-semibold text-lg">
         {editingProduct ? "Edit Product" : "Add Product"}
       </h2>
 
-      {jsonError && (
+      {error && (
         <div className="border border-red-200 bg-red-50 text-red-700 px-3 py-2 rounded">
-          {jsonError}
+          {error}
         </div>
       )}
 
-      <input
-        placeholder="Product Name"
-        className="w-full border px-3 py-2 rounded"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
-
-      <textarea
-        placeholder="Description"
-        className="w-full border px-3 py-2 rounded"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-
-      <input
-        type="number"
-        placeholder="Base Price"
-        className="w-full border px-3 py-2 rounded"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-        required
-      />
-
-      <select
-        className="w-full border px-3 py-2 rounded"
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-      >
-        <option value="wood">Wood</option>
-        <option value="stone">Stone</option>
-        <option value="furniture">Furniture</option>
-      </select>
-
-      {/* ✅ NEW: PRICING MAPS */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className="font-medium mb-2">Size Price Map (JSON)</p>
-          <textarea
-            className="w-full border px-3 py-2 rounded font-mono text-xs h-28"
-            value={sizePriceJson}
-            onChange={(e) => setSizePriceJson(e.target.value)}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Example: {"{ \"S\":0, \"M\":20, \"L\":40 }"}
-          </p>
-        </div>
-
-        <div>
-          <p className="font-medium mb-2">Material Price Map (JSON)</p>
-          <textarea
-            className="w-full border px-3 py-2 rounded font-mono text-xs h-28"
-            value={materialPriceJson}
-            onChange={(e) => setMaterialPriceJson(e.target.value)}
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Example: {"{ \"standard\":0, \"premium\":60 }"}
-          </p>
-        </div>
-      </div>
-
-      {/* ✅ NEW: 360 FRAMES URLs */}
-      <div>
-        <p className="font-medium mb-2">360 Frames URLs (one per line)</p>
-        <textarea
-          className="w-full border px-3 py-2 rounded font-mono text-xs h-28"
-          placeholder={`https://.../frame01.jpg\nhttps://.../frame02.jpg\n...`}
-          value={images360Text}
-          onChange={(e) => setImages360Text(e.target.value)}
-        />
-        <p className="text-xs text-gray-500 mt-1">
-          Tip: start with 24 or 36 frames for one demo product.
-        </p>
-      </div>
-
-      {/* IMAGE UPLOAD (color images) */}
-      <div>
-        <p className="font-medium mb-2">Color Images (base64 demo)</p>
-
-        <div className="flex gap-2 items-center">
+      {/* Basic info */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700">Product Name</label>
           <input
-            placeholder="Color key (e.g. natural, dark, light)"
-            className="border px-3 py-2 rounded w-1/3"
+            className="w-full border px-3 py-2 rounded"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Product name"
+            required
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700">Description</label>
+          <textarea
+            className="w-full border px-3 py-2 rounded"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700">Base Price</label>
+          <input
+            type="number"
+            className="w-full border px-3 py-2 rounded"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="Price"
+            required
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium text-gray-700">Category</label>
+          <select
+            className="w-full border px-3 py-2 rounded"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="wood">Wood</option>
+            <option value="stone">Stone</option>
+            <option value="furniture">Furniture</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ✅ One-size dimensions */}
+      <div className="border rounded-lg p-4">
+        <p className="font-medium mb-3">Product Size (cm)</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          <div className="space-y-1">
+            <label className="text-gray-600">Width</label>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={size.width}
+              onChange={(e) => setSize((p) => ({ ...p, width: e.target.value }))}
+              placeholder="cm"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-gray-600">Length</label>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={size.length}
+              onChange={(e) => setSize((p) => ({ ...p, length: e.target.value }))}
+              placeholder="cm"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-gray-600">Height</label>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={size.height}
+              onChange={(e) => setSize((p) => ({ ...p, height: e.target.value }))}
+              placeholder="cm"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ Material pricing */}
+      <div className="border rounded-lg p-4">
+        <p className="font-medium mb-3">Material Pricing (adds on top of base price)</p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div className="space-y-1">
+            <label className="text-gray-600">Standard add-on</label>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={materialPrice.standard}
+              onChange={(e) =>
+                setMaterialPrice((p) => ({ ...p, standard: Number(e.target.value) }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-gray-600">Premium add-on</label>
+            <input
+              type="number"
+              className="w-full border rounded px-3 py-2"
+              value={materialPrice.premium}
+              onChange={(e) =>
+                setMaterialPrice((p) => ({ ...p, premium: Number(e.target.value) }))
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 360 frames */}
+      <div className="border rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <p className="font-medium">360 Frames (URLs)</p>
+          <button
+            type="button"
+            onClick={addFrameRow}
+            className="text-sm px-3 py-1 border rounded hover:bg-gray-50"
+          >
+            + Add frame
+          </button>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {images360.map((v, idx) => (
+            <div key={idx} className="flex gap-2">
+              <input
+                className="flex-1 border rounded px-3 py-2 text-sm"
+                placeholder={`Frame ${idx + 1} URL`}
+                value={v}
+                onChange={(e) => updateFrame(idx, e.target.value)}
+              />
+              {images360.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeFrameRow(idx)}
+                  className="text-sm px-3 py-2 border rounded text-red-600 hover:bg-red-50"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Color images */}
+      <div className="border rounded-lg p-4">
+        <p className="font-medium mb-2">Color Images (demo)</p>
+
+        <div className="flex gap-2 items-center flex-wrap">
+          <input
+            placeholder="Color key (natural, dark, light)"
+            className="border px-3 py-2 rounded w-56"
             value={color}
             onChange={(e) => setColor(e.target.value)}
           />
@@ -287,7 +366,6 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
           </button>
         </div>
 
-        {/* PREVIEW */}
         {preview && (
           <img
             src={preview}
@@ -296,7 +374,6 @@ export default function ProductForm({ onAdd, onUpdate, editingProduct }) {
           />
         )}
 
-        {/* SAVED IMAGES */}
         <div className="flex gap-3 flex-wrap mt-3">
           {Object.entries(images).map(([c, img]) => (
             <div key={c} className="text-center">

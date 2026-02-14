@@ -1,30 +1,44 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
+import { useAuthModal } from "../context/AuthModalContext";
 
 export default function CartDrawer({ isOpen, onClose }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { openAuth } = useAuthModal();
+
   const { cartItems, updateQuantity, removeFromCart } = useCart();
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-
   const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
-    0,
+    0
   );
+
+  const handleCheckout = () => {
+    onClose();
+
+    if (!user) {
+      // ✅ must use "redirect" (not redirectTo)
+      openAuth({ mode: "login", redirect: "/checkout" });
+      return;
+    }
+
+    navigate("/checkout");
+  };
 
   return (
     <>
-      {/* Overlay */}
       {isOpen && (
         <div onClick={onClose} className="fixed inset-0 bg-black/40 z-40" />
       )}
 
-      {/* Drawer */}
       <div
         className={`fixed top-0 right-0 h-full w-[380px] bg-white z-50 shadow-xl transform transition-transform duration-300 flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-xl font-semibold">
             Your cart ({totalItems} items)
@@ -34,7 +48,6 @@ export default function CartDrawer({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Items */}
         <div
           className={`p-12 flex-1 ${
             !cartItems.length
@@ -56,8 +69,13 @@ export default function CartDrawer({ isOpen, onClose }) {
           )}
 
           {cartItems.map((item) => (
-            <div key={item.variantKey || `${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`}
- className="flex gap-4">
+            <div
+              key={
+                item.variantKey ||
+                `${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`
+              }
+              className="flex gap-4"
+            >
               <img
                 src={item.imageUrl}
                 alt={item.name}
@@ -66,15 +84,13 @@ export default function CartDrawer({ isOpen, onClose }) {
 
               <div className="flex-1">
                 <h3 className="font-medium">{item.name}</h3>
-                <p className="text-sm text-gray-500">
-                  ${item.price.toFixed(2)}
-                </p>
+                <p className="text-sm text-gray-500">${item.price.toFixed(2)}</p>
 
-                {/* Quantity */}
                 <div className="flex items-center gap-3 mt-2">
                   <button
                     onClick={() => updateQuantity(item, -1)}
                     className="border px-2"
+                    type="button"
                   >
                     −
                   </button>
@@ -82,6 +98,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                   <button
                     onClick={() => updateQuantity(item, 1)}
                     className="border px-2"
+                    type="button"
                   >
                     +
                   </button>
@@ -90,6 +107,7 @@ export default function CartDrawer({ isOpen, onClose }) {
                 <button
                   onClick={() => removeFromCart(item)}
                   className="text-sm text-gray-500 underline mt-2"
+                  type="button"
                 >
                   Remove item
                 </button>
@@ -102,7 +120,6 @@ export default function CartDrawer({ isOpen, onClose }) {
           ))}
         </div>
 
-        {/* Footer */}
         {cartItems.length > 0 && (
           <div className="border-t p-6 space-y-4">
             <div className="flex justify-between font-semibold">
@@ -122,13 +139,13 @@ export default function CartDrawer({ isOpen, onClose }) {
               Cart
             </NavLink>
 
-            <NavLink
-              to="/checkout"
-              onClick={onClose}
-              className="block text-center bg-black text-white py-3 rounded"
+            <button
+              onClick={handleCheckout}
+              className="block w-full text-center bg-black text-white py-3 rounded"
+              type="button"
             >
               Checkout
-            </NavLink>
+            </button>
           </div>
         )}
       </div>

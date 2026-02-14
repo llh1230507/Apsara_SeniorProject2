@@ -22,7 +22,7 @@ export default function AdminLayout() {
         <div className="flex justify-end p-4 bg-white border-b">
           <button
             onClick={handleLogout}
-            className="text-sm text-red-500 hover:text-red-600"
+            className="px-3 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700"
           >
             Logout
           </button>

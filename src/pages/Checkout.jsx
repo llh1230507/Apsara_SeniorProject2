@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthModal } from "../context/AuthModalContext";
-
+import { FaShoppingCart } from "react-icons/fa";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -11,13 +11,10 @@ export default function Checkout() {
   const { cartItems } = useCart();
   const { openAuth } = useAuthModal();
 
-
   if (!user) {
-  openAuth({ mode: "login", redirect: "/checkout" });
-  return <Navigate to="/" replace />;
-}
-
-  
+    openAuth({ mode: "login", redirect: "/checkout" });
+    return <Navigate to="/" replace />;
+  }
 
   // 🛒 Empty cart → products
   if (!cartItems || cartItems.length === 0) {
@@ -27,7 +24,7 @@ export default function Checkout() {
   // Totals
   const subtotal = cartItems.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
-    0
+    0,
   );
   const shipping = 0;
   const total = subtotal + shipping;
@@ -57,8 +54,17 @@ export default function Checkout() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 md:p-10">
-      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+    <div className="max-w-6xl mx-auto p-6 md:p-5">
+      <div className="mb-8 flex items-center">
+        <h1 className="text-3xl font-bold">Checkout</h1>
+        <NavLink
+          to="/cart"
+          className="text-sm text-gray-500 hover:text-red-700 inline-flex items-center gap-2 ml-auto"
+        >
+          {" "}
+          ← Return to Cart{" "}
+        </NavLink>
+      </div>
 
       <form
         onSubmit={handlePlaceOrder}
@@ -168,7 +174,7 @@ export default function Checkout() {
                 <div>
                   <p className="font-medium">Bank transfer</p>
                   <p className="text-sm text-gray-500">
-                    We’ll send you bank details after you place the order.
+                    We'll send you bank details after you place the order.
                   </p>
                 </div>
               </label>
@@ -182,7 +188,10 @@ export default function Checkout() {
 
           <div className="space-y-4 max-h-[360px] overflow-auto pr-2">
             {cartItems.map((item) => (
-              <div key={`${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`} className="flex gap-4">
+              <div
+                key={`${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`}
+                className="flex gap-4"
+              >
                 <img
                   src={item.imageUrl}
                   alt={item.name}
@@ -191,13 +200,16 @@ export default function Checkout() {
                 <div className="flex-1">
                   <p className="font-medium">{item.name}</p>
                   <p className="text-sm text-gray-500">
-                    {item.category} • {item.selectedColor} • {item.selectedSize} •{" "}
-                    {item.selectedMaterial}
+                    {item.category} • {item.selectedColor} • {item.selectedSize}{" "}
+                    • {item.selectedMaterial}
                   </p>
                   <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                 </div>
                 <div className="font-medium">
-                  ${(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}
+                  $
+                  {(
+                    Number(item.price || 0) * Number(item.quantity || 0)
+                  ).toFixed(2)}
                 </div>
               </div>
             ))}
@@ -231,7 +243,7 @@ export default function Checkout() {
           </button>
 
           <p className="text-xs text-gray-500 mt-3">
-            Demo checkout: order is not charged. You’ll be redirected to success
+            Demo checkout: order is not charged. You'll be redirected to success
             page.
           </p>
         </div>

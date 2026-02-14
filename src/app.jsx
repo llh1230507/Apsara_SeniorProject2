@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 // Layouts
 import UserLayout from "./layouts/UserLayout";
 import AdminLayout from "./layouts/AdminLayout";
+import BareLayout from "./layouts/BareLayout"; // ✅ ADD
 
 // USER pages
 import Home from "./pages/Home";
@@ -16,7 +17,6 @@ import Cart from "./pages/Cart";
 import Favorites from "./pages/Favorites";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSucess";
-
 import Profile from "./pages/Profile";
 import UserOrders from "./pages/UserOrders";
 import CategoryProducts from "./pages/CategoryProducts";
@@ -35,7 +35,7 @@ import AdminRoute from "./routes/AdminRoute";
 function App() {
   return (
     <Routes>
-      {/* ================= USER ================= */}
+      {/* ================= USER (with Navbar/Footer) ================= */}
       <Route element={<UserLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/search" element={<Search />} />
@@ -47,17 +47,8 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/favorites" element={<Favorites />} />
         <Route path="/products/:category" element={<CategoryProducts />} />
-        
 
-        {/* 🔐 USER AUTH REQUIRED */}
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute>
-              <Checkout />
-            </ProtectedRoute>
-          }
-        />
+        {/* 🔐 USER AUTH REQUIRED (still with Navbar/Footer) */}
         <Route
           path="/profile"
           element={
@@ -66,7 +57,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/orders"
           element={
@@ -75,11 +65,19 @@ function App() {
             </ProtectedRoute>
           }
         />
+      </Route>
 
-
-
+      {/* ================= BARE (no Navbar/Footer) ================= */}
+      <Route element={<BareLayout />}>
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <Checkout />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/order-success" element={<OrderSuccess />} />
-        
       </Route>
 
       {/* ================= ADMIN ================= */}

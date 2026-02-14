@@ -6,26 +6,22 @@ const AuthModalContext = createContext(null);
 export function AuthModalProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
   const [defaultMode, setDefaultMode] = useState("login");
-  const [redirectTo, setRedirectTo] = useState("/checkout");
+  const [redirectTo, setRedirectTo] = useState("/");
 
-  const openAuth = ({ mode = "login", redirect = "/checkout" } = {}) => {
+  // ✅ rename redirect -> redirectTo
+  const openAuth = ({ mode = "login", redirectTo = "/" } = {}) => {
     setDefaultMode(mode);
-    setRedirectTo(redirect);
+    setRedirectTo(redirectTo);
     setIsOpen(true);
   };
 
   const closeAuth = () => setIsOpen(false);
 
-  const value = useMemo(
-    () => ({ openAuth, closeAuth }),
-    []
-  );
+  const value = useMemo(() => ({ openAuth, closeAuth }), []);
 
   return (
     <AuthModalContext.Provider value={value}>
       {children}
-
-      {/* 🔥 Modal rendered globally */}
       <AuthModal
         isOpen={isOpen}
         onClose={closeAuth}
@@ -38,8 +34,6 @@ export function AuthModalProvider({ children }) {
 
 export function useAuthModal() {
   const ctx = useContext(AuthModalContext);
-  if (!ctx) {
-    throw new Error("useAuthModal must be used inside AuthModalProvider");
-  }
+  if (!ctx) throw new Error("useAuthModal must be used inside AuthModalProvider");
   return ctx;
 }

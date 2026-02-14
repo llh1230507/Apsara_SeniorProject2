@@ -49,11 +49,7 @@ function Product() {
 
   const getThumb = (p) => {
     // prefer imageUrl if present, else first in images, else empty
-    return (
-      p.imageUrl ||
-      Object.values(p.images || {})[0] ||
-      ""
-    );
+    return p.imageUrl || Object.values(p.images || {})[0] || "";
   };
 
   if (loading) {
@@ -111,26 +107,33 @@ function Product() {
                   <td className="p-3">
                     <span
                       className={`text-xs px-2 py-1 rounded-full ${
-                        has360 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                        has360
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
                       }`}
                     >
                       {has360 ? "Enabled" : "No"}
                     </span>
                   </td>
 
-                  <td className="p-3 space-x-2">
-                    <button
-                      onClick={() => setEditingProduct(product)}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingProduct(product)}
+                        className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50"
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(product.id)}
+                        className="px-3 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
