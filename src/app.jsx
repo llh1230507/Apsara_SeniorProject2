@@ -27,6 +27,7 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import Product from "./pages/admin/Product";
 import Orders from "./pages/admin/Orders";
 import CustomizeRequest from "./pages/admin/CustomizeRequest";
+import Users from "./pages/admin/Users";
 
 // Route guards
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -95,6 +96,7 @@ function App() {
         <Route path="product" element={<Product />} />
         <Route path="orders" element={<Orders />} />
         <Route path="customize" element={<CustomizeRequest />} />
+        <Route path="users" element={<Users />} />
       </Route>
     </Routes>
   );

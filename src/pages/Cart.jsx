@@ -13,7 +13,8 @@ const { openAuth } = useAuthModal();
 
 const handleCheckout = () => {
   if (!user) {
-    openAuth({ mode: "login", redirectTo: "/checkout" }); // ✅ only checkout forces /checkout
+    openAuth({ mode: "login", redirect: "/checkout" });
+ // ✅ only checkout forces /checkout
     return;
   }
   navigate("/checkout");
@@ -65,17 +66,44 @@ const handleCheckout = () => {
             <p className="text-red-700 font-semibold mt-1">${item.price}</p>
 
             <div className="flex items-center gap-4 mt-4">
-              <button onClick={() => updateQuantity(item, -1)}>−</button>
-              <span>{item.quantity}</span>
-              <button onClick={() => updateQuantity(item, 1)}>+</button>
+  <button type="button" onClick={() => updateQuantity(item, -1)}>
+    −
+  </button>
 
-              <button
-                onClick={() => removeFromCart(item)}
-                className="ml-auto text-red-500"
-              >
-                Remove
-              </button>
-            </div>
+  <span>{item.quantity}</span>
+
+  {(() => {
+    const maxStock = Number(item.stock ?? Infinity);
+    const atMax = Number(item.quantity || 0) >= maxStock;
+
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => updateQuantity(item, 1)}
+          disabled={atMax}
+          className={atMax ? "opacity-40 cursor-not-allowed" : ""}
+          title={atMax ? `Max stock: ${maxStock}` : "Add one more"}
+        >
+          +
+        </button>
+
+        {Number.isFinite(maxStock) && (
+          <span className="text-xs text-gray-500">Stock: {maxStock}</span>
+        )}
+      </>
+    );
+  })()}
+
+  <button
+    type="button"
+    onClick={() => removeFromCart(item)}
+    className="ml-auto text-red-500"
+  >
+    Remove
+  </button>
+</div>
+
           </div>
         </div>
       ))}

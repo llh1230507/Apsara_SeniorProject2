@@ -1,7 +1,15 @@
 // src/pages/ProductDetail.jsx
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
 import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
 import Viewer360 from "../components/Viewer360";
@@ -19,9 +27,12 @@ export default function ProductDetail() {
   const { category, id } = useParams();
   const { addToCart } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
 
   // Customization state
   const [color, setColor] = useState("natural");
@@ -49,6 +60,39 @@ export default function ProductDetail() {
 
     fetchProduct();
   }, [id]);
+
+  useEffect(() => {
+    const run = async () => {
+      const cat = product?.category || category;
+      if (!cat) return;
+
+      try {
+        setRelatedLoading(true);
+
+        const qRef = query(
+          collection(db, "products"),
+          where("category", "==", cat),
+          limit(8),
+        );
+
+        const snap = await getDocs(qRef);
+
+        const items = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((p) => p.id !== id) // exclude current
+          .slice(0, 4); // show 4
+
+        setRelatedProducts(items);
+      } catch (e) {
+        console.error("Related products error:", e);
+        setRelatedProducts([]);
+      } finally {
+        setRelatedLoading(false);
+      }
+    };
+
+    run();
+  }, [product?.category, category, id]);
 
   // ✅ safe fallback
   const materialPrice = product?.materialPrice || { standard: 0, premium: 60 };
@@ -87,6 +131,9 @@ export default function ProductDetail() {
     [product?.price],
   );
 
+  const stock = useMemo(() => Number(product?.stock ?? 0), [product?.stock]);
+  const outOfStock = stock === 0;
+
   const materialAddon = useMemo(
     () => Number(materialPrice?.[material] ?? 0),
     [materialPrice, material],
@@ -105,6 +152,7 @@ export default function ProductDetail() {
   }, [product?.id, color, material]);
 
   const has360 = (product?.images360 || []).length > 0;
+
   // ✅ Colors from admin (dynamic)
   const availableColors = useMemo(() => {
     return Object.keys(product?.images || {});
@@ -142,11 +190,35 @@ export default function ProductDetail() {
 
       // ✅ store one-size dims on the cart item (optional but useful)
       sizeDims: dims, // { width, length, height } or null
-
+      stock,
       variantKey,
       category,
     });
   };
+
+  const [show360, setShow360] = useState(false);
+
+  const colorKey = String(color).toLowerCase();
+
+  const frames360 = useMemo(() => {
+    const v = product?.images360;
+    if (!v) return [];
+
+    if (!Array.isArray(v) && typeof v === "object") {
+      const arr = v[colorKey];
+      return Array.isArray(arr) ? arr : [];
+    }
+
+    return Array.isArray(v) ? v : [];
+  }, [product?.images360, colorKey]);
+
+  const has360ForColor = frames360.length > 0;
+
+  useEffect(() => {
+    if (show360 && !has360ForColor) {
+      setShow360(false);
+    }
+  }, [show360, has360ForColor]);
 
   // ✅ early returns AFTER hooks
   if (loading) return <p className="p-8">Loading product...</p>;
@@ -158,13 +230,13 @@ export default function ProductDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Image / 360 Viewer */}
         <div className="space-y-4">
-          {has360 ? (
-            <Viewer360 frames={product.images360} alt={product.name} />
+          {show360 && has360ForColor ? (
+            <Viewer360 frames={frames360} alt={`${product.name} 360`} />
           ) : (
             <img
               src={mainImage}
               alt={product.name}
-              className="w-full h-[420px] object-cover rounded-xl shadow"
+              className="w-full h-[420px] object-cover shadow"
             />
           )}
 
@@ -246,53 +318,80 @@ export default function ProductDetail() {
             )}
           </div>
 
+          {/* 360 Toggle (after Color) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="font-medium">360 View</p>
+                <p className="text-sm text-gray-500">
+                  {has360ForColor
+                    ? "Rotate the product to view all angles."
+                    : "360 is not available for this color."}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => has360ForColor && setShow360((v) => !v)}
+                disabled={!has360ForColor}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition
+        ${
+          has360ForColor
+            ? show360
+              ? "bg-black text-white"
+              : "border border-gray-300 hover:border-gray-500"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
+        }`}
+              >
+                {show360 ? "Exit 360" : "View 360"}
+              </button>
+            </div>
+          </div>
+
           {/* Material (clickable options) */}
-<div>
-  <label className="font-medium block mb-2">Material</label>
+          <div>
+            <label className="font-medium block mb-2">Material</label>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
-    {materialOptions.map((opt) => {
-      const selected = material === opt.key;
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+              {materialOptions.map((opt) => {
+                const selected = material === opt.key;
 
-      return (
-        <button
-          key={opt.key}
-          type="button"
-          onClick={() => setMaterial(opt.key)}
-          className={`rounded-lg border p-3 text-left transition text-sm
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setMaterial(opt.key)}
+                    className={`rounded-lg border p-3 text-left transition text-sm
             ${
               selected
                 ? "border-black bg-gray-50"
                 : "border-gray-200 hover:border-gray-400"
             }
           `}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="font-semibold text-sm">{opt.title}</p>
-              <p className="text-xs text-gray-500">{opt.subtitle}</p>
-            </div>
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-sm">{opt.title}</p>
+                        <p className="text-xs text-gray-500">{opt.subtitle}</p>
+                      </div>
 
-            <div
-              className={`px-2 py-1 rounded-full text-xs font-semibold
+                      <div
+                        className={`px-2 py-1 rounded-full text-xs font-semibold
                 ${
-                  selected
-                    ? "bg-black text-white"
-                    : "bg-gray-100 text-gray-700"
+                  selected ? "bg-black text-white" : "bg-gray-100 text-gray-700"
                 }
               `}
-            >
-              {opt.add >= 0
-                ? `+$${money(opt.add)}`
-                : `-$${money(Math.abs(opt.add))}`}
+                      >
+                        {opt.add >= 0
+                          ? `+$${money(opt.add)}`
+                          : `-$${money(Math.abs(opt.add))}`}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </button>
-      );
-    })}
-  </div>
-</div>
-
 
           {/* Quantity */}
           <div>
@@ -309,7 +408,8 @@ export default function ProductDetail() {
               <span className="text-lg font-semibold">{quantity}</span>
 
               <button
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={() => setQuantity((q) => Math.min(stock, q + 1))}
+                disabled={quantity >= stock}
                 className="px-3 py-1 border rounded text-lg"
                 type="button"
               >
@@ -318,13 +418,22 @@ export default function ProductDetail() {
             </div>
           </div>
 
+          {stock > 0 && (
+            <p className="text-sm text-gray-500">In stock: {stock}</p>
+          )}
+
           {/* Actions */}
           <button
             onClick={handleAddToCart}
-            className="bg-red-700 text-white px-6 py-3 rounded hover:bg-red-800 transition"
+            disabled={outOfStock}
+            className={`px-6 py-3 rounded transition ${
+              outOfStock
+                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                : "bg-red-700 text-white hover:bg-red-800"
+            }`}
             type="button"
           >
-            Add to Cart
+            {outOfStock ? "Out of Stock" : "Add to Cart"}
           </button>
         </div>
       </div>
@@ -332,7 +441,6 @@ export default function ProductDetail() {
       {/* ===== FULL WIDTH TABS SECTION ===== */}
       <div className="w-full border rounded-xl bg-white overflow-hidden">
         <div className="flex border-b">
-
           <button
             type="button"
             onClick={() => setActiveTab("description")}
@@ -355,8 +463,6 @@ export default function ProductDetail() {
           >
             Product Size
           </button>
-
-          
         </div>
 
         <div className="p-10 text-gray-700 text-lg">
@@ -395,6 +501,67 @@ export default function ProductDetail() {
             </p>
           )}
         </div>
+      </div>
+      {/* ===== RELATED PRODUCTS (same category) ===== */}
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-2xl font-bold">Related Products</h2>
+        </div>
+
+        {relatedLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border p-4">
+                <div className="h-40 bg-gray-100 rounded-lg animate-pulse" />
+                <div className="mt-4 h-4 bg-gray-100 rounded animate-pulse" />
+                <div className="mt-2 h-4 bg-gray-100 rounded w-2/3 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : relatedProducts.length === 0 ? (
+          <p className="text-gray-500">No related products found.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {relatedProducts.map((p) => {
+              const img =
+                p?.imageUrl || Object.values(p?.images || {})[0] || "";
+
+              return (
+                <div
+                  key={p.id}
+                  className="bg-white  border overflow-hidden hover:shadow-md transition"
+                >
+                  <img
+                    src={img}
+                    alt={p.name}
+                    className="w-full h-44 object-cover"
+                  />
+
+                  <div className="p-4 space-y-2">
+                    <p className="font-semibold line-clamp-1">{p.name}</p>
+                    <p className="text-sm text-gray-500 capitalize">
+                      {p.category}
+                    </p>
+
+                    <p className="font-semibold text-red-700">
+                      ${money(p.price)}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(`/products/${p.category}/${p.id}`)
+                      }
+                      className="w-full mt-2 border rounded-lg py-2 text-sm hover:bg-gray-50"
+                    >
+                      View Product
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

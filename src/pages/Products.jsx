@@ -104,7 +104,7 @@ export default function Products() {
                   <Reveal key={product.id} delay={i * 80}>
                     <Link
                       to={`/products/${product.category}/${product.id}`}
-                      className="group border rounded-xl p-6 shadow-sm hover:shadow-lg transition cursor-pointer bg-white block"
+                      className="group border  p-6 shadow-sm hover:shadow-lg transition cursor-pointer bg-white block"
                     >
                       <div className="rounded-md overflow-hidden mb-4">
                         <img

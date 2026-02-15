@@ -6,35 +6,44 @@ import { useAuth } from "../context/AuthContext";
 import { db } from "../firebase";
 
 export default function AdminRoute({ children }) {
-  const { user, loading } = useAuth(); // ✅ make sure AuthContext provides loading
+  const { user, loading } = useAuth();
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      // wait until auth is known
+    let alive = true;
+
+    const run = async () => {
+      // Wait for auth to resolve
       if (loading) return;
 
-      // no user => not admin
+      // Not logged in => not admin
       if (!user) {
+        if (!alive) return;
         setIsAdmin(false);
         setChecking(false);
         return;
       }
 
       try {
-        const ref = doc(db, "admins", user.uid);
-        const snap = await getDoc(ref);
+        setChecking(true);
+        const snap = await getDoc(doc(db, "admins", user.uid));
+        if (!alive) return;
         setIsAdmin(snap.exists());
       } catch (err) {
         console.error("Admin check failed:", err);
+        if (!alive) return;
         setIsAdmin(false);
       } finally {
+        if (!alive) return;
         setChecking(false);
       }
     };
 
-    checkAdmin();
+    run();
+    return () => {
+      alive = false;
+    };
   }, [user, loading]);
 
   if (loading || checking) {

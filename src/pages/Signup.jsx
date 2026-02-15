@@ -5,7 +5,8 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { FcGoogle } from "react-icons/fc";
 
 export default function Signup({ onSuccess, onSwitch, redirectTo = "/" }) {
@@ -18,8 +19,24 @@ export default function Signup({ onSuccess, onSwitch, redirectTo = "/" }) {
 
   const navigate = useNavigate();
 
+  const ensureUserDoc = async (user) => {
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      uid: user.uid,
+      email: user.email || "",
+      name: user.displayName || "",
+      role: "user",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+};
+
   const afterAuth = () => {
-    if (onSuccess) onSuccess();  // close modal
+    if (onSuccess) onSuccess();
     navigate(redirectTo);
   };
 
@@ -28,12 +45,13 @@ export default function Signup({ onSuccess, onSwitch, redirectTo = "/" }) {
     setLoadingGoogle(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const res = await signInWithPopup(auth, provider);
+
+      await ensureUserDoc(res.user);
       afterAuth();
     } catch (err) {
       if (err.code === "auth/popup-closed-by-user") setError("Google sign-in cancelled.");
       else setError(err.message);
-      console.log("Google signup error:", err.code, err.message);
     } finally {
       setLoadingGoogle(false);
     }
@@ -50,7 +68,9 @@ export default function Signup({ onSuccess, onSwitch, redirectTo = "/" }) {
 
     setLoadingEmail(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+
+      await ensureUserDoc(res.user);
       afterAuth();
     } catch (err) {
       if (err.code === "auth/email-already-in-use")
@@ -58,8 +78,6 @@ export default function Signup({ onSuccess, onSwitch, redirectTo = "/" }) {
       else if (err.code === "auth/weak-password")
         setError("Password is too weak. Use at least 6 characters.");
       else setError(err.message);
-
-      console.log("Signup error:", err.code, err.message);
     } finally {
       setLoadingEmail(false);
     }

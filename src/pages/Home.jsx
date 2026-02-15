@@ -15,7 +15,7 @@ function ProductCard({ product }) {
           observer.unobserve(el);
         }
       },
-      { threshold: 0.2 }
+      { threshold: 0.2 },
     );
 
     observer.observe(el);
@@ -25,7 +25,7 @@ function ProductCard({ product }) {
   return (
     <div
       ref={ref}
-      className={`bg-white rounded-xl shadow-md hover:shadow-xl transition overflow-hidden group
+      className={`bg-white shadow-md hover:shadow-xl transition overflow-hidden group
         transform duration-700 ease-out
         ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
     >
@@ -39,20 +39,36 @@ function ProductCard({ product }) {
       </div>
 
       <div className="p-5">
-        <h3 className="text-xl font-semibold">{product.name}</h3>
-        <p className="text-gray-600 mt-1 text-lg">${product.price}</p>
+        <h3 className="text-10 ">{product.name}</h3>
+        <p className="text-gray-600 mt-1 text-sl">${product.price}</p>
 
-        <button className="mt-4 w-full bg-[#8b4513] text-white py-2 rounded-lg hover:bg-[#6b3410] transition">
-          View Product
-        </button>
+        
       </div>
     </div>
   );
 }
 
+/**
+ * Home component for the Apsara e-commerce platform.
+ * 
+ * Displays a dynamic banner slideshow featuring rotating images with smooth transitions,
+ * navigation dots, and a welcome message. Below the banner, showcases a grid of featured
+ * artisan products including wood sculptures, stone statues, metal figurines, and other
+ * handcrafted items.
+ * 
+ * Apsara refers to the celestial nymphs in Hindu and Buddhist mythology, known for their
+ * grace and elegance. This store celebrates the artistic traditions inspired by these
+ * divine figures through authentic Southeast Asian sculptures and figurines.
+ * 
+ * @component
+ * @returns {React.ReactElement} The home page layout with banner carousel and product grid
+ * 
+ * @example
+ * return <Home />
+ */
 function Home() {
   const products = [
-    { id: 1, name: "Wood Sculpture", price: 120, image: "/product1.jpg" },
+    { id: 1, name: "WOOD SCULPTURE", price: 120, image: "/product1.jpg" },
     { id: 2, name: "Stone Buddha Statue", price: 250, image: "/product2.jpg" },
     {
       id: 3,
@@ -88,7 +104,7 @@ function Home() {
 
   return (
     <div className="text-black">
-      <div className="relative h-[450px] w-full overflow-hidden">
+      <div className="relative h-[710px] w-full overflow-hidden">
         {bannerImages.map((src, idx) => (
           <div
             key={src}
@@ -118,6 +134,9 @@ function Home() {
             />
           ))}
         </div>
+      </div>
+      <div>
+        
       </div>
 
       <div className="max-w-7xl mx-auto px-6">

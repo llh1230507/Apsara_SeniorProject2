@@ -175,31 +175,52 @@ export function CartProvider({ children }) {
   };
 
   const updateQuantity = async (targetItem, amount) => {
-    const key = getKey(targetItem);
-    let nextQty = 0;
+  const key = getKey(targetItem);
 
-    setCartItems((prev) =>
-      prev
-        .map((i) => {
-          if (getKey(i) !== key) return i;
-          nextQty = Number(i.quantity || 0) + amount;
-          return { ...i, quantity: nextQty };
-        })
-        .filter((i) => Number(i.quantity || 0) > 0)
+  setCartItems((prev) => {
+    return prev
+      .map((i) => {
+        if (getKey(i) !== key) return i;
+
+        const maxStock = Number(i.stock ?? Infinity);
+        const currentQty = Number(i.quantity || 0);
+
+        // compute next quantity
+        let nextQty = currentQty + amount;
+
+        // clamp to [1..maxStock]
+        if (nextQty < 1) nextQty = 0; // allow removing only when going below 1
+        if (nextQty > maxStock) nextQty = maxStock;
+
+        return { ...i, quantity: nextQty };
+      })
+      .filter((i) => Number(i.quantity || 0) > 0);
+  });
+
+  // ✅ Firestore updates (if logged in)
+  if (!user) return;
+
+  const ref = doc(db, "users", user.uid, "cart", key);
+
+  // we need the latest target qty — easiest is to read item snapshot client-side:
+  const maxStock = Number(targetItem.stock ?? Infinity);
+  const currentQty = Number(targetItem.quantity || 0);
+  let nextQty = currentQty + amount;
+  if (nextQty < 1) nextQty = 0;
+  if (nextQty > maxStock) nextQty = maxStock;
+
+  if (nextQty <= 0) {
+    await deleteDoc(ref);
+  } else {
+    await setDoc(
+      ref,
+      { ...targetItem, variantKey: key, quantity: nextQty },
+      { merge: true }
     );
+  }
+};
 
-    if (!user) return;
 
-    if (nextQty <= 0) {
-      await deleteDoc(doc(db, "users", user.uid, "cart", key));
-    } else {
-      await setDoc(
-        doc(db, "users", user.uid, "cart", key),
-        { ...targetItem, variantKey: key, quantity: nextQty },
-        { merge: true }
-      );
-    }
-  };
 
   const clearCart = async () => {
     setCartItems([]);

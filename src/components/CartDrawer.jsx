@@ -10,9 +10,9 @@ export default function CartDrawer({ isOpen, onClose }) {
 
   const { cartItems, updateQuantity, removeFromCart } = useCart();
 
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
   const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0
   );
 
@@ -40,10 +40,8 @@ export default function CartDrawer({ isOpen, onClose }) {
         }`}
       >
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-semibold">
-            Your cart ({totalItems} items)
-          </h2>
-          <button onClick={onClose} className="text-2xl">
+          <h2 className="text-xl font-semibold">Your cart ({totalItems} items)</h2>
+          <button onClick={onClose} className="text-2xl" type="button">
             ×
           </button>
         </div>
@@ -68,56 +66,73 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
           )}
 
-          {cartItems.map((item) => (
-            <div
-              key={
-                item.variantKey ||
-                `${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`
-              }
-              className="flex gap-4"
-            >
-              <img
-                src={item.imageUrl}
-                alt={item.name}
-                className="w-16 h-16 object-cover rounded"
-              />
+          {cartItems.map((item) => {
+            // ✅ STOCK LIMIT LOGIC PER ITEM
+            const maxStock = Number(item.stock ?? Infinity);
+            const atMax = Number(item.quantity || 0) >= maxStock;
 
-              <div className="flex-1">
-                <h3 className="font-medium">{item.name}</h3>
-                <p className="text-sm text-gray-500">${item.price.toFixed(2)}</p>
+            return (
+              <div
+                key={
+                  item.variantKey ||
+                  `${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`
+                }
+                className="flex gap-4"
+              >
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-16 h-16 object-cover rounded"
+                />
 
-                <div className="flex items-center gap-3 mt-2">
+                <div className="flex-1">
+                  <h3 className="font-medium">{item.name}</h3>
+                  <p className="text-sm text-gray-500">${Number(item.price || 0).toFixed(2)}</p>
+
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      onClick={() => updateQuantity(item, -1)}
+                      className="border px-2"
+                      type="button"
+                    >
+                      −
+                    </button>
+
+                    <span>{item.quantity}</span>
+
+                    <button
+                      onClick={() => updateQuantity(item, 1)}
+                      disabled={atMax}
+                      className={`border px-2 ${
+                        atMax ? "opacity-40 cursor-not-allowed" : ""
+                      }`}
+                      type="button"
+                      title={atMax ? `Max stock: ${maxStock}` : "Add one more"}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Optional: show stock info */}
+                  {Number.isFinite(maxStock) && (
+                    <p className="text-xs text-gray-500 mt-1">Stock: {maxStock}</p>
+                  )}
+
                   <button
-                    onClick={() => updateQuantity(item, -1)}
-                    className="border px-2"
+                    onClick={() => removeFromCart(item)}
+                    className="text-sm text-gray-500 underline mt-2"
                     type="button"
                   >
-                    −
-                  </button>
-                  <span>{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item, 1)}
-                    className="border px-2"
-                    type="button"
-                  >
-                    +
+                    Remove item
                   </button>
                 </div>
 
-                <button
-                  onClick={() => removeFromCart(item)}
-                  className="text-sm text-gray-500 underline mt-2"
-                  type="button"
-                >
-                  Remove item
-                </button>
+                <p className="font-medium">
+                  ${(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}
+                </p>
               </div>
-
-              <p className="font-medium">
-                ${(item.price * item.quantity).toFixed(2)}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {cartItems.length > 0 && (

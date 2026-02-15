@@ -5,7 +5,8 @@ import {
   GoogleAuthProvider,
 } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { FcGoogle } from "react-icons/fc";
 
 export default function Login({ onSuccess, onSwitch, redirectTo = "/checkout" }) {
@@ -17,9 +18,38 @@ export default function Login({ onSuccess, onSwitch, redirectTo = "/checkout" })
 
   const navigate = useNavigate();
 
+  // ✅ Create/Update user doc in Firestore for Admin user list
+  const upsertUserDoc = async (u) => {
+  if (!u) return;
+
+  const ref = doc(db, "users", u.uid);
+  const snap = await getDoc(ref);
+
+  const baseData = {
+    uid: u.uid,
+    email: u.email || "",
+    displayName: u.displayName || "",
+    photoURL: u.photoURL || "",
+    provider: u.providerData?.[0]?.providerId || "unknown",
+    updatedAt: serverTimestamp(),
+  };
+
+  if (!snap.exists()) {
+    // first time user
+    await setDoc(ref, {
+      ...baseData,
+      role: "user",
+      createdAt: serverTimestamp(),
+    });
+  } else {
+    // existing user: DO NOT touch role/createdAt
+    await updateDoc(ref, baseData);
+  }
+};
+
   const afterAuth = () => {
-    if (onSuccess) onSuccess();       // modal mode -> close
-    navigate(redirectTo);             // still navigate where you want
+    if (onSuccess) onSuccess(); // modal mode -> close
+    navigate(redirectTo);
   };
 
   const handleLogin = async (e) => {
@@ -28,12 +58,16 @@ export default function Login({ onSuccess, onSwitch, redirectTo = "/checkout" })
     setLoadingEmail(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      await upsertUserDoc(cred.user);
       afterAuth();
     } catch (err) {
-      if (err.code === "auth/invalid-credential") setError("Wrong email or password.");
-      else if (err.code === "auth/invalid-email") setError("Invalid email address.");
+      if (err.code === "auth/invalid-credential")
+        setError("Wrong email or password.");
+      else if (err.code === "auth/invalid-email")
+        setError("Invalid email address.");
       else setError(err.message);
+
       console.log("Login error:", err.code, err.message);
     } finally {
       setLoadingEmail(false);
@@ -46,11 +80,14 @@ export default function Login({ onSuccess, onSwitch, redirectTo = "/checkout" })
 
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      await upsertUserDoc(cred.user);
       afterAuth();
     } catch (err) {
-      if (err.code === "auth/popup-closed-by-user") setError("Google sign-in cancelled.");
+      if (err.code === "auth/popup-closed-by-user")
+        setError("Google sign-in cancelled.");
       else setError(err.message);
+
       console.log("Google login error:", err.code, err.message);
     } finally {
       setLoadingGoogle(false);

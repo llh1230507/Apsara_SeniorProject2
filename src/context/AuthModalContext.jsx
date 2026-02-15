@@ -8,10 +8,14 @@ export function AuthModalProvider({ children }) {
   const [defaultMode, setDefaultMode] = useState("login");
   const [redirectTo, setRedirectTo] = useState("/");
 
-  // ✅ rename redirect -> redirectTo
-  const openAuth = ({ mode = "login", redirectTo = "/" } = {}) => {
+  // ✅ Accept BOTH redirect and redirectTo
+  const openAuth = ({ mode = "login", redirectTo, redirect } = {}) => {
     setDefaultMode(mode);
-    setRedirectTo(redirectTo);
+
+    // Priority: redirectTo > redirect > "/"
+    const finalRedirect = redirectTo || redirect || "/";
+    setRedirectTo(finalRedirect);
+
     setIsOpen(true);
   };
 
@@ -34,6 +38,8 @@ export function AuthModalProvider({ children }) {
 
 export function useAuthModal() {
   const ctx = useContext(AuthModalContext);
-  if (!ctx) throw new Error("useAuthModal must be used inside AuthModalProvider");
+  if (!ctx) {
+    throw new Error("useAuthModal must be used inside AuthModalProvider");
+  }
   return ctx;
 }
