@@ -76,17 +76,15 @@ function Product() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Product Management</h1>
-          
         </div>
 
         <button
-  type="button"
-  onClick={handleClickAdd}
-  className="px-4 py-2 rounded bg-red-700 text-white hover:bg-red-800"
->
-  {showForm ? "Add Product" : "Add Product"}
-</button>
-
+          type="button"
+          onClick={handleClickAdd}
+          className="px-4 py-2 rounded bg-red-700 text-white hover:bg-red-800"
+        >
+          {showForm ? "Add Product" : "Add Product"}
+        </button>
       </div>
 
       {/* Form panel (toggle) */}
@@ -102,100 +100,101 @@ function Product() {
       )}
 
       {/* Table */}
-{!showForm && (
-  <div className="bg-white rounded shadow overflow-x-auto">
-    <table className="w-full text-sm">
-      <thead className="bg-gray-100">
-        <tr>
-          <th className="p-3 text-left">Name</th>
-          <th className="p-3 text-left">Base Price</th>
-          <th className="p-3 text-left">Category</th>
-          <th className="p-3 text-left">Stock</th>
-          <th className="p-3 text-left">Image</th>
-          <th className="p-3 text-left">360</th>
-          <th className="p-3 text-left w-44">Actions</th>
-        </tr>
-      </thead>
+      {!showForm && (
+        <div className="bg-white rounded shadow overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="p-3 text-left">Name</th>
+                <th className="p-3 text-left">Base Price</th>
+                <th className="p-3 text-left">Category</th>
+                <th className="p-3 text-left">Stock</th>
+                <th className="p-3 text-left">Image</th>
+                <th className="p-3 text-left">360</th>
+                <th className="p-3 text-left w-44">Actions</th>
+              </tr>
+            </thead>
 
-      <tbody>
-        {products.map((product) => {
-          const thumb = getThumb(product);
+            <tbody>
+              {products.map((product) => {
+                const thumb = getThumb(product);
 
-          const v = product.images360;
-          const has360 = Array.isArray(v)
-            ? v.length > 0
-            : v && typeof v === "object"
-            ? Object.values(v).some((arr) => Array.isArray(arr) && arr.length)
-            : false;
+                const v = product.images360;
+                const has360 = Array.isArray(v)
+                  ? v.length > 0
+                  : v && typeof v === "object"
+                    ? Object.values(v).some(
+                        (arr) => Array.isArray(arr) && arr.length,
+                      )
+                    : false;
 
-          return (
-            <tr key={product.id} className="border-t">
-              <td className="p-3">{product.name}</td>
-              <td className="p-3">${product.price ?? 0}</td>
-              <td className="p-3 capitalize">{product.category}</td>
-              <td className="p-3">{product.stock ?? 0}</td>
+                return (
+                  <tr key={product.id} className="border-t">
+                    <td className="p-3">{product.name}</td>
+                    <td className="p-3">${product.price ?? 0}</td>
+                    <td className="p-3 capitalize">{product.category}</td>
+                    <td className="p-3">{product.stock ?? 0}</td>
 
-              <td className="p-3">
-                {thumb ? (
-                  <img
-                    src={thumb}
-                    alt={product.name}
-                    className="w-12 h-12 rounded object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-400">
-                    N/A
-                  </div>
-                )}
-              </td>
+                    <td className="p-3">
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt={product.name}
+                          className="w-12 h-12 rounded object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+                          N/A
+                        </div>
+                      )}
+                    </td>
 
-              <td className="p-3">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    has360
-                      ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-600"
-                  }`}
-                >
-                  {has360 ? "Enabled" : "No"}
-                </span>
-              </td>
+                    <td className="p-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full ${
+                          has360
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {has360 ? "Enabled" : "No"}
+                      </span>
+                    </td>
 
-              <td className="p-3">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleClickEdit(product)}
-                    className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50"
-                  >
-                    Edit
-                  </button>
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleClickEdit(product)}
+                          className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50"
+                        >
+                          Edit
+                        </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(product.id)}
-                    className="px-3 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
-            </tr>
-          );
-        })}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(product.id)}
+                          className="px-3 py-1.5 rounded bg-red-600 text-white text-sm hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
 
-        {products.length === 0 && (
-          <tr>
-            <td colSpan={7} className="p-4 text-center text-gray-400">
-              No products yet
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-)}
-
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-4 text-center text-gray-400">
+                    No products yet
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
