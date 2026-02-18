@@ -1,128 +1,215 @@
-import { useEffect, useRef, useState } from "react";
+// src/pages/Home.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { collection, getDocs, limit, query } from "firebase/firestore";
+import { db } from "../firebase";
+import { FaHammer, FaGem, FaGlobeAsia } from "react-icons/fa";
 
-function ProductCard({ product }) {
+/* ---------- Helpers ---------- */
+const getThumb = (p) => p?.imageUrl || Object.values(p?.images || {})[0] || "";
+const money = (n) => Number(n || 0).toFixed(2);
+
+/* ---------- Reveal Animation ---------- */
+function Reveal({ children, delay = 0 }) {
   const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    const node = ref.current;
+    if (!node) return;
 
-    const observer = new IntersectionObserver(
+    const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(el);
+          setShown(true);
+          obs.disconnect();
         }
       },
-      { threshold: 0.2 },
+      { threshold: 0.15 },
     );
 
-    observer.observe(el);
-    return () => observer.disconnect();
+    obs.observe(node);
+    return () => obs.disconnect();
   }, []);
 
   return (
     <div
       ref={ref}
-      className={`bg-white shadow-md hover:shadow-xl transition overflow-hidden group
-        transform duration-700 ease-out
-        ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`opacity-0 translate-y-4 transition-all duration-700 ease-out ${
+        shown ? "opacity-100 translate-y-0" : ""
+      }`}
     >
-      <div className="h-64 w-full overflow-hidden">
-        <img
-          src={product.image}
-          loading="lazy"
-          className="h-full w-full object-cover group-hover:scale-110 transition duration-500"
-          alt={product.name}
-        />
+      {children}
+    </div>
+  );
+}
+
+/* ---------- Product Card ---------- */
+function ProductCard({ product }) {
+  const img = getThumb(product);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden group border">
+      <div className="h-56 w-full overflow-hidden bg-gray-50">
+        {img ? (
+          <img
+            src={img}
+            loading="lazy"
+            className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
+            alt={product.name}
+          />
+        ) : (
+          <div className="h-full w-full grid place-items-center text-gray-400 text-sm">
+            No image
+          </div>
+        )}
       </div>
 
       <div className="p-5">
-        <h3 className="text-10 ">{product.name}</h3>
-        <p className="text-gray-600 mt-1 text-sl">${product.price}</p>
+        <p className="text-xs text-gray-500 capitalize">{product.category}</p>
+        <h3 className="font-semibold text-lg mt-1 line-clamp-1">
+          {product.name}
+        </h3>
 
-        
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-red-700 font-semibold">${money(product.price)}</p>
+
+          <Link
+            to={`/products/${product.category}/${product.id}`}
+            className="text-sm px-3 py-2 rounded-lg border hover:bg-gray-50"
+          >
+            View Details
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
 
-/**
- * Home component for the Apsara e-commerce platform.
- * 
- * Displays a dynamic banner slideshow featuring rotating images with smooth transitions,
- * navigation dots, and a welcome message. Below the banner, showcases a grid of featured
- * artisan products including wood sculptures, stone statues, metal figurines, and other
- * handcrafted items.
- * 
- * Apsara refers to the celestial nymphs in Hindu and Buddhist mythology, known for their
- * grace and elegance. This store celebrates the artistic traditions inspired by these
- * divine figures through authentic Southeast Asian sculptures and figurines.
- * 
- * @component
- * @returns {React.ReactElement} The home page layout with banner carousel and product grid
- * 
- * @example
- * return <Home />
- */
-function Home() {
-  const products = [
-    { id: 1, name: "WOOD SCULPTURE", price: 120, image: "/product1.jpg" },
-    { id: 2, name: "Stone Buddha Statue", price: 250, image: "/product2.jpg" },
-    {
-      id: 3,
-      name: "Metal Apsara Figurine",
-      price: 180,
-      image: "/product3.jpg",
-    },
-    {
-      id: 4,
-      name: "Hand-Carved Wooden Elephant",
-      price: 90,
-      image: "/product1.jpg",
-    },
-    {
-      id: 5,
-      name: "Marble Mini Sculpture",
-      price: 140,
-      image: "/product2.jpg",
-    },
-    { id: 6, name: "Bronze Khmer Head", price: 300, image: "/product3.jpg" },
-  ];
+/* ---------- Home ---------- */
+export default function Home() {
+  const navigate = useNavigate();
 
-  // Banner slideshow
   const bannerImages = ["/banner.jpg", "/banner2.jpg", "/banner3.jpg"];
   const [current, setCurrent] = useState(0);
 
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Auto slideshow
   useEffect(() => {
-    const interval = setInterval(() => {
+    const t = setInterval(() => {
       setCurrent((prev) => (prev + 1) % bannerImages.length);
-    }, 10000); // 10s
-    return () => clearInterval(interval);
+    }, 8000);
+    return () => clearInterval(t);
   }, [bannerImages.length]);
+
+  // Fetch products from Firestore
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+
+        // Pull some products (you can increase limit later)
+        const qy = query(collection(db, "products"), limit(60));
+        const snap = await getDocs(qy);
+
+        const data = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
+        setProducts(data);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  // Pick 1 product per category for Featured Products
+  const featured = useMemo(() => {
+    const byCat = {
+      wood: products.filter((p) => p.category === "wood"),
+      stone: products.filter((p) => p.category === "stone"),
+      furniture: products.filter((p) => p.category === "furniture"),
+    };
+
+    // simple pick: first item (you can change to "highest price" or "newest" later)
+    const oneEach = [
+      byCat.wood?.[0],
+      byCat.stone?.[0],
+      byCat.furniture?.[0],
+    ].filter(Boolean);
+
+    return oneEach;
+  }, [products]);
+
+  const handleBannerClick = () => {
+    navigate("/products");
+  };
 
   return (
     <div className="text-black">
-      <div className="relative h-[710px] w-full overflow-hidden">
+      {/* ===== HERO / BANNER (CLICKABLE) ===== */}
+      <div
+        className="relative h-[720px] w-full overflow-hidden cursor-pointer group"
+        onClick={handleBannerClick}
+      >
         {bannerImages.map((src, idx) => (
           <div
             key={src}
             className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
               idx === current ? "opacity-100" : "opacity-0"
             }`}
-            style={{ backgroundImage: `url('${src}')` }}
           >
-            <div className="h-full w-full bg-cover bg-center flex items-center justify-center">
-              <h1 className="text-5xl font-bold text-white drop-shadow-2xl">
-                Welcome to Apsara
-              </h1>
-            </div>
+            <div
+              className="h-full w-full bg-cover bg-center transition-transform duration-[4000ms] ease-out group-hover:scale-105"
+              style={{
+                backgroundImage: `url('${src}')`,
+              }}
+            />
           </div>
         ))}
 
-        {/* Optional dots */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/60" />
+
+        {/* Hero content */}
+        <div className="absolute inset-0 flex items-center justify-center px-6">
+          <div className="text-center text-white max-w-3xl">
+            <h1 className="text-5xl md:text-6xl font-bold drop-shadow-2xl">
+              Welcome to Apsara
+            </h1>
+
+            <p className="mt-6 text-lg md:text-xl text-white/90 font-light">
+              Discover authentic handcrafted masterpieces for your home.{" "}
+            </p>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/products");
+              }}
+              className="mt-8 px-8 py-3 border border-white text-white rounded-full 
+                   hover:bg-white hover:text-black transition-all duration-300"
+            >
+              Explore Collection
+            </button>
+          </div>
+        </div>
+
+        {/* Dots */}
+        <div
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           {bannerImages.map((_, idx) => (
             <button
               key={idx}
@@ -131,27 +218,80 @@ function Home() {
               className={`h-2.5 w-2.5 rounded-full transition ${
                 idx === current ? "bg-white" : "bg-white/50 hover:bg-white/80"
               }`}
+              type="button"
             />
           ))}
         </div>
       </div>
-      <div>
-        
+
+      {/* ===== FEATURES STRIP ===== */}
+      <div className="bg-[#f3ebe2]">
+        <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="text-center">
+            <div className="mx-auto w-11 h-11 rounded-full bg-white grid place-items-center shadow-sm">
+              <FaHammer className="text-red-700" />
+            </div>
+            <h3 className="mt-4 font-semibold">Handcrafted Quality</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Each piece is meticulously crafted by master artisans using
+              traditional techniques.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <div className="mx-auto w-11 h-11 rounded-full bg-white grid place-items-center shadow-sm">
+              <FaGem className="text-red-700" />
+            </div>
+            <h3 className="mt-4 font-semibold">Authentic Materials</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Sourced from the finest wood, stone, and metals for lasting
+              beauty.
+            </p>
+          </div>
+
+          <div className="text-center">
+            <div className="mx-auto w-11 h-11 rounded-full bg-white grid place-items-center shadow-sm">
+              <FaGlobeAsia className="text-red-700" />
+            </div>
+            <h3 className="mt-4 font-semibold">Global Shipping</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              We deliver your art to your doorstep, anywhere in the world.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6">
-        <h2 className="text-3xl font-semibold mt-10 text-center">
-          Featured Products
-        </h2>
+      {/* ===== FEATURED PRODUCTS ===== */}
+      <div className="max-w-7xl mx-auto px-6 py-14">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold">Featured Products</h2>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10 py-10">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
+        {loading ? (
+          <p className="text-center text-gray-500 mt-10">Loading...</p>
+        ) : featured.length === 0 ? (
+          <p className="text-center text-gray-500 mt-10">
+            No products available yet. Add products from Admin.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
+            {featured.map((p, i) => (
+              <Reveal key={p.id} delay={i * 120}>
+                <ProductCard product={p} />
+              </Reveal>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-10 flex justify-center">
+          <Link
+            to="/products"
+            className="px-5 py-3 rounded-lg border hover:bg-gray-50 transition font-medium"
+          >
+            View All Products
+          </Link>
         </div>
       </div>
     </div>
   );
 }
-
-export default Home;

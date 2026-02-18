@@ -68,41 +68,7 @@ const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
                 Products
               </NavLink>
 
-              <ul className="absolute left-0 top-full hidden group-hover:flex flex-col bg-white border shadow-lg rounded-md w-64 py-2">
-                <li>
-                  <NavLink to="/products/wood" className={dropdownLinkClass}>
-                    <img
-                      src="/product1.jpg"
-                      alt="Wood"
-                      className="w-16 h-16 rounded"
-                    />
-                    Wood
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink to="/products/stone" className={dropdownLinkClass}>
-                    <img
-                      src="/2.jpg"
-                      alt="Stone"
-                      className="w-16 h-16 rounded"
-                    />
-                    Stone
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/products/furniture"
-                    className={dropdownLinkClass}
-                  >
-                    <img
-                      src="/product3.jpg"
-                      alt="Furniture"
-                      className="w-16 h-16 rounded"
-                    />
-                    Furniture
-                  </NavLink>
-                </li>
-              </ul>
+              
             </li>
 
             <li>

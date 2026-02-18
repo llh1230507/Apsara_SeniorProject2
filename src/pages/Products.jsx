@@ -1,58 +1,51 @@
+// src/pages/Products.jsx
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 
-/* ---------- Reveal Animation ---------- */
-function Reveal({ children, delay = 0 }) {
-  const ref = useRef(null);
-  const [shown, setShown] = useState(false);
+const money = (n) => Number(n || 0).toFixed(2);
 
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShown(true);
-          obs.disconnect();
-        }
-      },
-      { threshold: 0.15 }
-    );
-
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
-
+const getThumb = (p) => {
   return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`opacity-0 translate-y-4 transition-all duration-700 ease-out ${
-        shown ? "opacity-100 translate-y-0" : ""
-      }`}
-    >
-      {children}
-    </div>
+    p?.imageUrl ||
+    Object.values(p?.images || {})[0] ||
+    "https://via.placeholder.com/600x450?text=No+Image"
   );
-}
+};
 
-/* ---------- Products Page ---------- */
+const CATEGORY_LABELS = [
+  { key: "all", label: "All Products" },
+  { key: "wood", label: "Wood Sculptures" },
+  { key: "stone", label: "Stone Art" },
+  { key: "furniture", label: "Furniture" },
+];
+
+// you can adjust these ranges any time
+const PRICE_RANGES = [
+  { key: "under100", label: "Under $100", min: 0, max: 100 },
+  { key: "100to500", label: "$100 - $500", min: 100, max: 500 },
+  { key: "500plus", label: "$500+", min: 500, max: Infinity },
+];
+
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch products from Firestore
+  // filters
+  const [category, setCategory] = useState("all");
+  const [selectedRanges, setSelectedRanges] = useState(new Set());
+  const [inStockOnly, setInStockOnly] = useState(false);
+
+  // sort
+  const [sortBy, setSortBy] = useState("featured"); // featured | priceAsc | priceDesc | nameAsc
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        setLoading(true);
         const snap = await getDocs(collection(db, "products"));
-        const data = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setProducts(data);
       } catch (err) {
         console.error("Failed to fetch products:", err);
@@ -64,68 +57,225 @@ export default function Products() {
     fetchProducts();
   }, []);
 
-  // Group products by category
-  const grouped = {
-    wood: products.filter((p) => p.category === "wood"),
-    stone: products.filter((p) => p.category === "stone"),
-    furniture: products.filter((p) => p.category === "furniture"),
+  const toggleRange = (key) => {
+    setSelectedRanges((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const filtered = useMemo(() => {
+    let list = [...products];
+
+    // category filter
+    if (category !== "all") {
+      list = list.filter((p) => p.category === category);
+    }
+
+    // availability filter
+    if (inStockOnly) {
+      list = list.filter((p) => Number(p.stock ?? 0) > 0);
+    }
+
+    // price ranges filter (if none selected, allow all)
+    if (selectedRanges.size > 0) {
+      list = list.filter((p) => {
+        const price = Number(p.price || 0);
+        for (const r of PRICE_RANGES) {
+          if (!selectedRanges.has(r.key)) continue;
+          if (price >= r.min && price < r.max) return true;
+        }
+        return false;
+      });
+    }
+
+    // sort
+    if (sortBy === "priceAsc") {
+      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    } else if (sortBy === "priceDesc") {
+      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    } else if (sortBy === "nameAsc") {
+      list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    } else {
+      // "featured" -> keep Firestore order
+    }
+
+    return list;
+  }, [products, category, inStockOnly, selectedRanges, sortBy]);
+
+  const clearFilters = () => {
+    setCategory("all");
+    setSelectedRanges(new Set());
+    setInStockOnly(false);
+    setSortBy("featured");
   };
 
   if (loading) {
-    return <p className="p-8 text-lg">Loading products...</p>;
+    return <div className="p-10 text-gray-600">Loading products…</div>;
   }
 
   return (
-    <div className="p-8 text-black">
-      <h1 className="text-4xl font-bold mb-8">Products</h1>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10">
+          {/* ===== SIDEBAR ===== */}
+          <aside className="lg:sticky lg:top-24 h-fit">
+            <div className="border rounded-xl p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs tracking-widest text-gray-500 uppercase">Categories</p>
+                  <h2 className="text-lg font-semibold mt-1">Filter</h2>
+                </div>
 
-      {[
-        { name: "Wood Sculpture", slug: "wood" },
-        { name: "Stone Sculpture", slug: "stone" },
-        { name: "Furniture", slug: "furniture" },
-      ].map((category, idx) => (
-        <div key={idx} className="mb-12">
-          <Reveal>
-            <Link
-              to={`/products/${category.slug}`}
-              className="text-2xl font-semibold mb-4 flex items-center gap-2 hover:underline"
-            >
-              {category.name}
-              <span className="text-gray-500">→</span>
-            </Link>
-          </Reveal>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm text-gray-600 hover:text-black underline"
+                >
+                  Reset
+                </button>
+              </div>
 
-          {grouped[category.slug].length === 0 ? (
-            <p className="text-gray-500">No products available.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="grid grid-cols-6 gap-6 min-w-max">
-                {grouped[category.slug].map((product, i) => (
-                  <Reveal key={product.id} delay={i * 80}>
-                    <Link
-                      to={`/products/${product.category}/${product.id}`}
-                      className="group border  p-6 shadow-sm hover:shadow-lg transition cursor-pointer bg-white block"
-                    >
-                      <div className="rounded-md overflow-hidden mb-4">
-                        <img
-  src={Object.values(product.images || {})[0]}
-  alt={product.name}
-  className="h-32 w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-  loading="lazy"
-/>
+              {/* Category */}
+              <div className="mt-6">
+                <p className="text-sm font-semibold text-gray-900">Category</p>
 
-                      </div>
+                <div className="mt-3 space-y-2">
+                  {CATEGORY_LABELS.map((c) => (
+                    <label key={c.key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="category"
+                        value={c.key}
+                        checked={category === c.key}
+                        onChange={() => setCategory(c.key)}
+                        className="accent-red-700"
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-                      <p className="text-lg font-medium">{product.name}</p>
-                      <p className="text-gray-600">${product.price}</p>
-                    </Link>
-                  </Reveal>
-                ))}
+              {/* Price Range */}
+              <div className="mt-8">
+                <p className="text-sm font-semibold text-gray-900">Price Range</p>
+                <div className="mt-3 space-y-2">
+                  {PRICE_RANGES.map((r) => (
+                    <label key={r.key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedRanges.has(r.key)}
+                        onChange={() => toggleRange(r.key)}
+                        className="accent-red-700"
+                      />
+                      {r.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div className="mt-8">
+                <p className="text-sm font-semibold text-gray-900">Availability</p>
+                <label className="mt-3 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(e) => setInStockOnly(e.target.checked)}
+                    className="accent-red-700"
+                  />
+                  In Stock
+                </label>
               </div>
             </div>
-          )}
+          </aside>
+
+          {/* ===== MAIN CONTENT ===== */}
+          <main>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold">All Products</h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  Showing {filtered.length} result{filtered.length === 1 ? "" : "s"}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-600">Sort by:</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="border rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="featured">Featured</option>
+                  <option value="priceAsc">Price: Low to High</option>
+                  <option value="priceDesc">Price: High to Low</option>
+                  <option value="nameAsc">Name: A → Z</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Grid */}
+            {filtered.length === 0 ? (
+              <div className="mt-10 border rounded-xl p-10 text-gray-600">
+                No products match your filters.
+              </div>
+            ) : (
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+                {filtered.map((p) => (
+                  <div
+                    key={p.id}
+                    className="border rounded-xl overflow-hidden bg-white hover:shadow-lg transition"
+                  >
+                    <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                      <img
+                        src={getThumb(p)}
+                        alt={p.name}
+                        className="h-full w-full object-cover hover:scale-105 transition duration-500"
+                        loading="lazy"
+                      />
+                    </div>
+
+                    <div className="p-4">
+                      <div className="text-xs text-gray-500 capitalize">
+                        {p.category || "uncategorized"}
+                      </div>
+
+                      <div className="mt-1 font-semibold text-gray-900">{p.name}</div>
+
+                      <div className="mt-2 text-gray-900 font-semibold">
+                        ${money(p.price)}
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between">
+                        <Link
+                          to={`/products/${p.category}/${p.id}`}
+                          className="text-sm border rounded-lg px-3 py-2 hover:bg-gray-50"
+                        >
+                          View Details
+                        </Link>
+
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            Number(p.stock ?? 0) > 0
+                              ? "bg-green-50 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {Number(p.stock ?? 0) > 0 ? "In Stock" : "Out of Stock"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

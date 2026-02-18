@@ -19,7 +19,7 @@ import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSucess";
 import Profile from "./pages/Profile";
 import UserOrders from "./pages/UserOrders";
-import CategoryProducts from "./pages/CategoryProducts";
+
 
 // ADMIN pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -47,7 +47,7 @@ function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/favorites" element={<Favorites />} />
-        <Route path="/products/:category" element={<CategoryProducts />} />
+        
 
         {/* 🔐 USER AUTH REQUIRED (still with Navbar/Footer) */}
         <Route
