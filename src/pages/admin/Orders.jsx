@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   limit,
@@ -75,6 +76,16 @@ export default function Orders() {
       console.error("Failed to update status:", err);
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handleDelete = async (orderId) => {
+    if (!window.confirm("Delete this order permanently?")) return;
+    try {
+      await deleteDoc(doc(db, "orders", orderId));
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } catch (err) {
+      console.error("Failed to delete order:", err);
     }
   };
 
@@ -153,7 +164,7 @@ export default function Orders() {
                         ))}
                       </select>
                     </td>
-                    <td className="p-3">
+                    <td className="p-3 flex gap-2 items-center">
                       <button
                         onClick={() =>
                           setExpanded(expanded === order.id ? null : order.id)
@@ -162,6 +173,14 @@ export default function Orders() {
                       >
                         {expanded === order.id ? "Hide" : "Details"}
                       </button>
+                      {(order.status === "completed" || order.status === "cancelled") && (
+                        <button
+                          onClick={() => handleDelete(order.id)}
+                          className="text-xs text-red-500 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
 

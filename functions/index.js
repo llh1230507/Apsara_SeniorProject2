@@ -75,7 +75,7 @@ exports.createCheckoutSession = onCall(
         currency: "usd",
         product_data: {
           name: item.name,
-          ...(item.imageUrl ? { images: [item.imageUrl] } : {}),
+          ...(item.imageUrl && item.imageUrl.length <= 2048 ? { images: [item.imageUrl] } : {}),
           description: [
             item.category,
             item.selectedColor,

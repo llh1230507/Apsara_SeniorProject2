@@ -7,40 +7,77 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { collection, getCountFromServer } from "firebase/firestore";
-import { db } from "../../firebase"; // ✅ adjust path if needed
+import {
+  collection,
+  getDocs,
+  getCountFromServer,
+  orderBy,
+  query,
+  limit,
+} from "firebase/firestore";
+import { db } from "../../firebase";
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const PAID_STATUSES = new Set(["paid", "processing", "shipped", "completed"]);
 
 function Dashboard() {
-  const [stats, setStats] = useState({
-    products: 0,
-    orders: 0,
-    revenue: 0,
-  });
-
-  const salesData = [
-    { name: "Mon", sales: 200 },
-    { name: "Tue", sales: 450 },
-    { name: "Wed", sales: 300 },
-    { name: "Thu", sales: 600 },
-    { name: "Fri", sales: 500 },
-    { name: "Sat", sales: 800 },
-    { name: "Sun", sales: 400 },
-  ];
+  const [stats, setStats] = useState({ products: 0, orders: 0, revenue: 0 });
+  const [salesData, setSalesData] = useState(
+    DAY_NAMES.map((name) => ({ name, sales: 0 })),
+  );
 
   useEffect(() => {
     const loadStats = async () => {
       try {
-        // ✅ fast + cheap: server-side count (no downloading all docs)
-        const productsSnap = await getCountFromServer(collection(db, "products"));
-        const productCount = productsSnap.data().count;
+        const [productsSnap, ordersSnap] = await Promise.all([
+          getCountFromServer(collection(db, "products")),
+          getDocs(
+            query(
+              collection(db, "orders"),
+              orderBy("createdAt", "desc"),
+              limit(500),
+            ),
+          ),
+        ]);
 
-        setStats((prev) => ({
-          ...prev,
-          products: productCount,
-          // keep these mock for now (replace later if you have collections)
-          orders: prev.orders || 12,
-          revenue: prev.revenue || 1250,
-        }));
+        const productCount = productsSnap.data().count;
+        const orders = ordersSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+        const paidOrders = orders.filter((o) => PAID_STATUSES.has(o.status));
+        const revenue = paidOrders.reduce(
+          (sum, o) => sum + Number(o.subtotal || 0),
+          0,
+        );
+
+        // Build last-7-days chart: group by day-of-week
+        const now = new Date();
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const dailyMap = {};
+        for (let i = 0; i <= 6; i++) {
+          const d = new Date(sevenDaysAgo);
+          d.setDate(sevenDaysAgo.getDate() + i);
+          dailyMap[d.toDateString()] = {
+            name: DAY_NAMES[d.getDay()],
+            sales: 0,
+          };
+        }
+
+        paidOrders.forEach((o) => {
+          if (!o.createdAt) return;
+          const d = o.createdAt?.toDate
+            ? o.createdAt.toDate()
+            : new Date(o.createdAt);
+          const key = d.toDateString();
+          if (dailyMap[key]) {
+            dailyMap[key].sales += Number(o.subtotal || 0);
+          }
+        });
+
+        setSalesData(Object.values(dailyMap));
+        setStats({ products: productCount, orders: orders.length, revenue });
       } catch (err) {
         console.error("Failed to load dashboard stats:", err);
       }
@@ -75,7 +112,7 @@ function Dashboard() {
 
       {/* Chart */}
       <div className="bg-white p-6 rounded shadow">
-        <h2 className="text-lg font-semibold mb-4">Weekly Sales</h2>
+        <h2 className="text-lg font-semibold mb-4">Revenue – Last 7 Days</h2>
 
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -83,7 +120,12 @@ function Dashboard() {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="sales" stroke="#b91c1c" strokeWidth={3} />
+              <Line
+                type="monotone"
+                dataKey="sales"
+                stroke="#b91c1c"
+                strokeWidth={3}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
