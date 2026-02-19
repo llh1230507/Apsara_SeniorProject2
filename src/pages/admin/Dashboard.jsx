@@ -7,6 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { collection, getCountFromServer } from "firebase/firestore";
+import { db } from "../../firebase"; // ✅ adjust path if needed
 
 function Dashboard() {
   const [stats, setStats] = useState({
@@ -26,11 +28,25 @@ function Dashboard() {
   ];
 
   useEffect(() => {
-    setStats({
-      products: 24,
-      orders: 12,
-      revenue: 1250,
-    });
+    const loadStats = async () => {
+      try {
+        // ✅ fast + cheap: server-side count (no downloading all docs)
+        const productsSnap = await getCountFromServer(collection(db, "products"));
+        const productCount = productsSnap.data().count;
+
+        setStats((prev) => ({
+          ...prev,
+          products: productCount,
+          // keep these mock for now (replace later if you have collections)
+          orders: prev.orders || 12,
+          revenue: prev.revenue || 1250,
+        }));
+      } catch (err) {
+        console.error("Failed to load dashboard stats:", err);
+      }
+    };
+
+    loadStats();
   }, []);
 
   return (
@@ -52,7 +68,7 @@ function Dashboard() {
         <div className="bg-white p-6 rounded shadow">
           <p className="text-gray-500">Revenue</p>
           <h2 className="text-2xl font-bold">
-            ${stats.revenue.toLocaleString()}
+            ${Number(stats.revenue || 0).toLocaleString()}
           </h2>
         </div>
       </div>
@@ -67,12 +83,7 @@ function Dashboard() {
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#b91c1c"
-                strokeWidth={3}
-              />
+              <Line type="monotone" dataKey="sales" stroke="#b91c1c" strokeWidth={3} />
             </LineChart>
           </ResponsiveContainer>
         </div>

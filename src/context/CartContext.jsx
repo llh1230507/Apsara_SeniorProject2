@@ -17,7 +17,7 @@ export function CartProvider({ children }) {
   const { user } = useAuth();
 
   const [cartItems, setCartItems] = useState(
-    JSON.parse(localStorage.getItem("cart")) || []
+    JSON.parse(localStorage.getItem("cart")) || [],
   );
 
   const [cartLoading, setCartLoading] = useState(false);
@@ -44,18 +44,11 @@ export function CartProvider({ children }) {
 
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(ref);
-          const currentQty = snap.exists()
-            ? Number(snap.data().quantity || 0)
-            : 0;
-          const addQty = Number(item.quantity || 0);
-
-          tx.set(
-            ref,
-            { ...item, variantKey: key, quantity: currentQty + addQty },
-            { merge: true }
-          );
+          if (!snap.exists()) {
+            tx.set(ref, { ...item, variantKey: key }, { merge: true });
+          }
         });
-      })
+      }),
     );
 
     localStorage.removeItem("cart");
@@ -96,7 +89,7 @@ export function CartProvider({ children }) {
           console.error("Cart snapshot error:", err);
           setCartLoading(false);
           setCartReady(true);
-        }
+        },
       );
     };
 
@@ -134,7 +127,7 @@ export function CartProvider({ children }) {
                 quantity:
                   Number(i.quantity || 0) + Number(product.quantity || 0),
               }
-            : i
+            : i,
         );
       }
       return [...prev, { ...product, variantKey: key }];
@@ -158,7 +151,7 @@ export function CartProvider({ children }) {
         tx.set(
           ref,
           { ...product, variantKey: key, quantity: currentQty + addQty },
-          { merge: true }
+          { merge: true },
         );
       });
     } catch (e) {
@@ -175,52 +168,50 @@ export function CartProvider({ children }) {
   };
 
   const updateQuantity = async (targetItem, amount) => {
-  const key = getKey(targetItem);
+    const key = getKey(targetItem);
 
-  setCartItems((prev) => {
-    return prev
-      .map((i) => {
-        if (getKey(i) !== key) return i;
+    setCartItems((prev) => {
+      return prev
+        .map((i) => {
+          if (getKey(i) !== key) return i;
 
-        const maxStock = Number(i.stock ?? Infinity);
-        const currentQty = Number(i.quantity || 0);
+          const maxStock = Number(i.stock ?? Infinity);
+          const currentQty = Number(i.quantity || 0);
 
-        // compute next quantity
-        let nextQty = currentQty + amount;
+          // compute next quantity
+          let nextQty = currentQty + amount;
 
-        // clamp to [1..maxStock]
-        if (nextQty < 1) nextQty = 0; // allow removing only when going below 1
-        if (nextQty > maxStock) nextQty = maxStock;
+          // clamp to [1..maxStock]
+          if (nextQty < 1) nextQty = 0; // allow removing only when going below 1
+          if (nextQty > maxStock) nextQty = maxStock;
 
-        return { ...i, quantity: nextQty };
-      })
-      .filter((i) => Number(i.quantity || 0) > 0);
-  });
+          return { ...i, quantity: nextQty };
+        })
+        .filter((i) => Number(i.quantity || 0) > 0);
+    });
 
-  // ✅ Firestore updates (if logged in)
-  if (!user) return;
+    // ✅ Firestore updates (if logged in)
+    if (!user) return;
 
-  const ref = doc(db, "users", user.uid, "cart", key);
+    const ref = doc(db, "users", user.uid, "cart", key);
 
-  // we need the latest target qty — easiest is to read item snapshot client-side:
-  const maxStock = Number(targetItem.stock ?? Infinity);
-  const currentQty = Number(targetItem.quantity || 0);
-  let nextQty = currentQty + amount;
-  if (nextQty < 1) nextQty = 0;
-  if (nextQty > maxStock) nextQty = maxStock;
+    // we need the latest target qty — easiest is to read item snapshot client-side:
+    const maxStock = Number(targetItem.stock ?? Infinity);
+    const currentQty = Number(targetItem.quantity || 0);
+    let nextQty = currentQty + amount;
+    if (nextQty < 1) nextQty = 0;
+    if (nextQty > maxStock) nextQty = maxStock;
 
-  if (nextQty <= 0) {
-    await deleteDoc(ref);
-  } else {
-    await setDoc(
-      ref,
-      { ...targetItem, variantKey: key, quantity: nextQty },
-      { merge: true }
-    );
-  }
-};
-
-
+    if (nextQty <= 0) {
+      await deleteDoc(ref);
+    } else {
+      await setDoc(
+        ref,
+        { ...targetItem, variantKey: key, quantity: nextQty },
+        { merge: true },
+      );
+    }
+  };
 
   const clearCart = async () => {
     setCartItems([]);
@@ -250,7 +241,7 @@ export function CartProvider({ children }) {
       closeCart,
       setIsCartOpen, // optional
     }),
-    [cartItems, cartLoading, cartReady, isCartOpen]
+    [cartItems, cartLoading, cartReady, isCartOpen],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

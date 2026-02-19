@@ -244,7 +244,7 @@ export default function Home() {
             </div>
             <h3 className="mt-4 font-semibold">Authentic Materials</h3>
             <p className="mt-2 text-sm text-gray-600">
-              Sourced from the finest wood, stone, and metals for lasting
+              Sourced from the finest materials for long lasting
               beauty.
             </p>
           </div>

@@ -179,7 +179,7 @@ const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0)
       redirectTo: location.pathname + location.search, // ✅ stay here
     })
   }
-  className="px-3 py-2 bg-black text-white rounded hover:opacity-90 text-sm"
+  className="px-3 py-2 bg-red-700 text-white rounded hover:opacity-90 text-sm"
 >
   Login
 </button>

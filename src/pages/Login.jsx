@@ -96,7 +96,7 @@ export default function Login({ onSuccess, onSwitch, redirectTo = "/checkout" })
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Login</h1>
+      <h1 className="text-2xl font-bold mb-4 ">Login</h1>
 
       {error && <p className="text-red-600 mb-3">{error}</p>}
 
@@ -121,7 +121,7 @@ export default function Login({ onSuccess, onSwitch, redirectTo = "/checkout" })
 
         <button
           disabled={loadingEmail}
-          className="bg-black text-white w-full py-3 rounded disabled:opacity-60"
+          className="bg-red-700 text-white w-full py-3 rounded disabled:opacity-60"
         >
           {loadingEmail ? "Logging in..." : "Login"}
         </button>

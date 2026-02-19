@@ -1,49 +1,109 @@
+// src/pages/Contact.jsx
+import { FiMail, FiPhone, FiClock, FiMapPin } from "react-icons/fi";
+
 function Contact() {
   return (
-    <div className="max-w-3xl mx-auto p-6 text-gray-800">
-      <h1 className="text-3xl font-bold mb-3">Contact Us</h1>
-      <p className="text-gray-600 mb-8">
-        Reach our support team or find our store locations.
-      </p>
+    <div className="bg-white text-gray-800">
+      {/* Header */}
+      <div className="max-w-4xl mx-auto px-6 pt-16 pb-8 text-center">
+        <h1 className="text-3xl font-bold">Contact Us</h1>
+        <p className="text-gray-500 mt-2 text-sm">
+          Reach our support team or find our store locations near you.
+        </p>
+      </div>
 
-      {/* Contact Options */}
-      <div className="space-y-8">
+      <div className="max-w-4xl mx-auto px-6 pb-20">
+        <div className="space-y-8">
+          {/* Customer Support Card */}
+          <div className="bg-white border rounded-2xl shadow-sm">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold">Customer Support</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                We’re here to help with your orders, questions, or issues.
+              </p>
+            </div>
 
-        {/* Support Section */}
-        <div className="p-6 border rounded-xl shadow-sm bg-white">
-          <h2 className="text-xl font-semibold mb-2">Customer Support</h2>
-          <p className="text-gray-600 mb-3">We're here to help with your orders, questions, or issues.</p>
+            <div className="border-t">
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {/* Email */}
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <FiMail className="text-gray-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Email</p>
+                    <p className="text-sm text-gray-500">apsara51@gmail.com</p>
+                  </div>
+                </div>
 
-          <div className="space-y-1">
-            <p><span className="font-medium">Email:</span> support@apsara.com</p>
-            <p><span className="font-medium">Phone:</span> +855 123 456</p>
-            <p><span className="font-medium">Hours:</span> Mon–Fri, 9 AM–6 PM</p>
+                {/* Phone */}
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <FiPhone className="text-gray-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Phone</p>
+                    <p className="text-sm text-gray-500">+855 93866666</p>
+                  </div>
+                </div>
+
+                {/* Hours */}
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <FiClock className="text-gray-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Hours</p>
+                    <p className="text-sm text-gray-500">Mon–Sun, 9 AM–6 PM</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* Store Locations Card */}
+          <div className="bg-white border rounded-2xl shadow-sm">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold">Store Locations</h2>
+              <p className="text-gray-500 text-sm mt-1">
+                Visit us in person at any of our retail locations.
+              </p>
+            </div>
+
+            <div className="border-t">
+              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Phnom Penh */}
+                <div className="flex items-start gap-3 rounded-xl border bg-gray-50 p-4">
+                  <div className="h-10 w-10 rounded-lg bg-white border flex items-center justify-center">
+                    <FiMapPin className="text-gray-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Phnom Penh #1</p>
+                    <p className="text-sm text-gray-500">
+                      24 Street 53, Daun Penh
+                    </p>
+                  </div>
+                </div>
+
+                {/* Jroy Jongva */}
+                <div className="flex items-start gap-3 rounded-xl border bg-gray-50 p-4">
+                  <div className="h-10 w-10 rounded-lg bg-white border flex items-center justify-center">
+                    <FiMapPin className="text-gray-700" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Phnom Penh #2</p>
+                    <p className="text-sm text-gray-500">National Street 6A</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Optional: small footer note */}
+          <p className="text-xs text-gray-400 text-center">
+            We usually respond within 24 hours on business days.
+          </p>
         </div>
-
-        {/* Store Locations */}
-        <div className="p-6 border rounded-xl shadow-sm bg-white">
-          <h2 className="text-xl font-semibold mb-2">Store Locations</h2>
-          <p className="text-gray-600 mb-4">Visit us at any of our locations.</p>
-
-          <ul className="space-y-3">
-            <li>
-              <p className="font-medium">Phnom Penh</p>
-              <p className="text-gray-600 text-sm">Street 123, Daun Penh</p>
-            </li>
-
-            <li>
-              <p className="font-medium">Siem Reap</p>
-              <p className="text-gray-600 text-sm">Angkor Market Road</p>
-            </li>
-
-            <li>
-              <p className="font-medium">Battambang</p>
-              <p className="text-gray-600 text-sm">Central Market Street</p>
-            </li>
-          </ul>
-        </div>
-
       </div>
     </div>
   );

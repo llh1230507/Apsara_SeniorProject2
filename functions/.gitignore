@@ -1,0 +1,3 @@
+node_modules/
+*.localsendgrid.env
+sendgrid.env

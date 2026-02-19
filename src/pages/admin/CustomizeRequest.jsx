@@ -1,51 +1,121 @@
-import { useEffect, useState } from "react";
+// src/pages/admin/CustomizeRequest.jsx
+import { useEffect, useMemo, useState } from "react";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
+import { db } from "../../firebase";
+import emailjs from "@emailjs/browser";
 
-const MOCK_REQUESTS = [
-  {
-    id: 101,
-    guestName: "Alice Nguyen",
-    email: "alice@example.com",
-    phone: "555-1234",
-    details: "Custom coffee table made of walnut wood, 120x60cm.",
-    createdAt: "2025-12-01T10:30:00Z",
-    status: "pending",
-  },
-  {
-    id: 102,
-    guestName: "Ben Carter",
-    email: "ben@example.com",
-    phone: "555-9876",
-    details: "Metal bookshelf (black steel), 6 shelves, 2m tall.",
-    createdAt: "2025-12-02T08:15:00Z",
-    status: "pending",
-  },
-];
+
+const fmtNum = (n) => Number(n || 0);
 
 export default function CustomizeRequest() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState({});
 
+  const sendDecisionEmail = async ({ to, status, productName }) => {
+  const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+  const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+  const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+
+  const subject =
+    status === "accepted"
+      ? "Your customization request is accepted ✅"
+      : "Update on your customization request";
+
+  const message =
+    status === "accepted"
+      ? `Thank you for your request. Your request is accepted. We will contact you soon. Thank you.\n\nProduct: ${productName}`
+      : `Thank you for your request. Unfortunately, we cannot fulfill your request. Hope we can help you next time. Thank you.\n\nProduct: ${productName}`;
+
+  // these must match your EmailJS template variables
+  const templateParams = {
+    to_email: to,
+    subject,
+    message,
+  };
+
+  return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+};
+
+
   useEffect(() => {
-    setTimeout(() => {
-      setRequests(MOCK_REQUESTS);
-      setLoading(false);
-    }, 500);
+    const q = query(
+      collection(db, "customizationRequests"),
+      orderBy("createdAt", "desc"),
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setRequests(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error(err);
+        setLoading(false);
+      },
+    );
+
+    return () => unsub();
   }, []);
 
-  const updateStatus = (id, status) => {
+  const handleDelete = async (id) => {
+    const ok = window.confirm("Delete this customization request?");
+    if (!ok) return;
+
     setBusy((b) => ({ ...b, [id]: true }));
-    setTimeout(() => {
-      setRequests((list) =>
-        list.map((r) => (r.id === id ? { ...r, status } : r))
-      );
+    try {
+      await deleteDoc(doc(db, "customizationRequests", id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete request");
+    } finally {
       setBusy((b) => {
         const next = { ...b };
         delete next[id];
         return next;
       });
-    }, 600);
+    }
   };
+
+  const updateStatus = async (reqDoc, status) => {
+  const id = reqDoc.id;
+  setBusy((b) => ({ ...b, [id]: true }));
+
+  try {
+    // 1) update Firestore
+    await updateDoc(doc(db, "customizationRequests", id), { status });
+
+    // 2) send email (only if email exists)
+    const to = reqDoc.email || reqDoc.userEmail;
+    if (to) {
+      await sendDecisionEmail({
+        to,
+        status,
+        productName: reqDoc.productName || "your product",
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update / email");
+  } finally {
+    setBusy((b) => {
+      const next = { ...b };
+      delete next[id];
+      return next;
+    });
+  }
+};
+
 
   const statusBadge = (status = "pending") => {
     const styles = {
@@ -53,94 +123,163 @@ export default function CustomizeRequest() {
       accepted: "bg-green-100 text-green-700",
       rejected: "bg-red-100 text-red-700",
     };
+
     return (
       <span
-        className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[status]}`}
+        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+          styles[status] || styles.pending
+        }`}
       >
         {status}
       </span>
     );
   };
 
+  const total = useMemo(() => requests.length, [requests]);
+
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-white rounded-2xl shadow p-6">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold">Customization Requests</h2>
-        <span className="text-sm text-gray-500">
-          Total: {requests.length}
-        </span>
+        <div>
+          <h2 className="text-xl font-bold">Customization Requests</h2>
+          <p className="text-sm text-gray-500">
+            Review and accept/reject customer customization requests.
+          </p>
+        </div>
+        <span className="text-sm text-gray-500">Total: {total}</span>
       </div>
 
       {loading && <p className="text-gray-500">Loading requests...</p>}
 
       {!loading && (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b text-sm text-gray-600">
-                <th className="py-3 text-left">Guest</th>
-                <th className="py-3 text-left">Contact</th>
-                <th className="py-3 text-left">Request</th>
-                <th className="py-3 text-left">Date</th>
-                <th className="py-3 text-left">Status</th>
-                <th className="py-3 text-left">Action</th>
+              <tr className="border-b text-gray-600">
+                <th className="py-3 text-left whitespace-nowrap">Product</th>
+                <th className="py-3 text-left whitespace-nowrap">Customer</th>
+                <th className="py-3 text-left whitespace-nowrap">Contact</th>
+                <th className="py-3 text-left whitespace-nowrap">Size (cm)</th>
+                <th className="py-3 text-left">Details</th>
+                <th className="py-3 text-left whitespace-nowrap">Image</th>
+                <th className="py-3 text-left whitespace-nowrap">Date</th>
+                <th className="py-3 text-left whitespace-nowrap">Status</th>
+                <th className="py-3 text-left whitespace-nowrap">Action</th>
               </tr>
             </thead>
 
             <tbody>
               {requests.map((r) => {
-                const pending = r.status === "pending";
-                const isBusy = busy[r.id];
+                const pending = (r.status || "pending") === "pending";
+                const isBusy = !!busy[r.id];
+                const s = r.size || {};
+
+                // ✅ you saved: { height, width, length }
+                const H = fmtNum(s.height);
+                const W = fmtNum(s.width);
+                const L = fmtNum(s.length);
 
                 return (
                   <tr
                     key={r.id}
                     className="border-b hover:bg-gray-50 transition"
                   >
-                    <td className="py-3">
-                      <div className="font-semibold">{r.guestName}</div>
+                    <td className="py-4 pr-4 align-top">
+                      <div className="font-semibold">
+                        {r.productName || "-"}
+                      </div>
                       <div className="text-xs text-gray-400">#{r.id}</div>
                     </td>
 
-                    <td className="py-3 text-sm">
-                      <div>{r.email}</div>
-                      <div className="text-gray-400">{r.phone}</div>
+                    <td className="py-4 pr-4 align-top">
+                      <div className="text-gray-800">
+                        {r.userEmail || "Guest"}
+                      </div>
+                      {r.userId ? (
+                        <div className="text-xs text-gray-400">{r.userId}</div>
+                      ) : null}
                     </td>
 
-                    <td className="py-3 text-sm max-w-sm">
-                      {r.details}
+                    {/* ✅ Email + phone */}
+                    <td className="py-4 pr-4 align-top">
+                      <div className="text-gray-800">{r.email || "-"}</div>
+                      <div className="text-xs text-gray-400">
+                        {r.phone || "-"}
+                      </div>
                     </td>
 
-                    <td className="py-3 text-sm">
-                      {new Date(r.createdAt).toLocaleDateString()}
+                    <td className="py-4 pr-4 align-top text-gray-700 whitespace-nowrap">
+                      {W}×{L}×{H}
                     </td>
 
-                    <td className="py-3">{statusBadge(r.status)}</td>
+                    <td className="py-4 pr-4 align-top max-w-sm">
+                      <div className="text-gray-700 line-clamp-3">
+                        {r.details || "-"}
+                      </div>
+                    </td>
 
-                    <td className="py-3">
+                    <td className="py-4 pr-4 align-top">
+                      {r.imageUrl ? (
+                        <a
+                          href={r.imageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-red-700 underline"
+                        >
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">None</span>
+                      )}
+                    </td>
+
+                    <td className="py-4 pr-4 align-top whitespace-nowrap">
+                      {r.createdAt?.toDate
+                        ? r.createdAt.toDate().toLocaleString()
+                        : "-"}
+                    </td>
+
+                    <td className="py-4 pr-4 align-top">
+                      {statusBadge(r.status)}
+                    </td>
+
+                    <td className="py-4 align-top">
                       <div className="flex gap-2">
                         <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => handleDelete(r.id)}
+                          className={`px-3 py-1 rounded font-semibold ${
+                            !isBusy
+                              ? "bg-gray-900 text-white hover:bg-black"
+                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          {isBusy ? "..." : "Delete"}
+                        </button>
+
+                        <button
+                          type="button"
                           disabled={!pending || isBusy}
-                          onClick={() => updateStatus(r.id, "accepted")}
-                          className={`px-3 py-1 rounded text-sm font-semibold
-                            ${
-                              pending && !isBusy
-                                ? "bg-green-600 text-white hover:bg-green-700"
-                                : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                            }`}
+                          onClick={() => updateStatus(r, "accepted")}
+                          className={`px-3 py-1 rounded font-semibold ${
+                            pending && !isBusy
+                              ? "bg-green-600 text-white hover:bg-green-700"
+                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          }`}
                         >
                           {isBusy ? "..." : "Accept"}
                         </button>
 
                         <button
+                          type="button"
                           disabled={!pending || isBusy}
-                          onClick={() => updateStatus(r.id, "rejected")}
-                          className={`px-3 py-1 rounded text-sm font-semibold
-                            ${
-                              pending && !isBusy
-                                ? "bg-red-600 text-white hover:bg-red-700"
-                                : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                            }`}
+                          onClick={() => updateStatus(r, "rejected")}
+                          className={`px-3 py-1 rounded font-semibold ${
+                            pending && !isBusy
+                              ? "bg-red-600 text-white hover:bg-red-700"
+                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          }`}
                         >
                           {isBusy ? "..." : "Reject"}
                         </button>
@@ -149,6 +288,14 @@ export default function CustomizeRequest() {
                   </tr>
                 );
               })}
+
+              {!requests.length && (
+                <tr>
+                  <td colSpan={9} className="py-10 text-center text-gray-400">
+                    No customization requests yet
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
