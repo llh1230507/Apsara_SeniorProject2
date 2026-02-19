@@ -1,7 +1,7 @@
 // src/pages/Products.jsx
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "../firebase";
 
 const money = (n) => Number(n || 0).toFixed(2);
@@ -44,7 +44,7 @@ export default function Products() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const snap = await getDocs(collection(db, "products"));
+        const snap = await getDocs(query(collection(db, "products"), limit(50)));
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setProducts(data);
       } catch (err) {

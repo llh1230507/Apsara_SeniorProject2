@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Navigate, useNavigate, NavLink } from "react-router-dom";
+import { httpsCallable } from "firebase/functions";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthModal } from "../context/AuthModalContext";
+import { functions } from "../firebase";
 import { FaShoppingCart } from "react-icons/fa";
 
 export default function Checkout() {
@@ -10,6 +12,8 @@ export default function Checkout() {
   const { user } = useAuth();
   const { cartItems } = useCart();
   const { openAuth } = useAuthModal();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!user) {
     openAuth({ mode: "login", redirect: "/checkout" });
@@ -39,18 +43,31 @@ export default function Checkout() {
     city: "",
     country: "Thailand",
     postalCode: "",
-    paymentMethod: "cod", // "cod" | "bank"
   });
 
   const onChange = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-    // ✅ For now: local-only demo flow
-    // Later: save order to Firestore + clear cart
-    navigate("/order-success");
+    try {
+      const createCheckoutSession = httpsCallable(
+        functions,
+        "createCheckoutSession"
+      );
+      const result = await createCheckoutSession({
+        cartItems,
+        customerInfo: form,
+      });
+      window.location.href = result.data.url;
+    } catch (err) {
+      console.error("Checkout error:", err);
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,6 +82,12 @@ export default function Checkout() {
           ← Return to Cart{" "}
         </NavLink>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       <form
         onSubmit={handlePlaceOrder}
@@ -144,41 +167,11 @@ export default function Checkout() {
           </div>
 
           <div className="bg-white rounded-xl shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Payment</h2>
-
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="cod"
-                  checked={form.paymentMethod === "cod"}
-                  onChange={onChange("paymentMethod")}
-                />
-                <div>
-                  <p className="font-medium">Cash on delivery</p>
-                  <p className="text-sm text-gray-500">
-                    Pay when you receive the item.
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-center gap-3 border rounded-lg px-4 py-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="bank"
-                  checked={form.paymentMethod === "bank"}
-                  onChange={onChange("paymentMethod")}
-                />
-                <div>
-                  <p className="font-medium">Bank transfer</p>
-                  <p className="text-sm text-gray-500">
-                    We'll send you bank details after you place the order.
-                  </p>
-                </div>
-              </label>
-            </div>
+            <h2 className="text-xl font-semibold mb-2">Payment</h2>
+            <p className="text-sm text-gray-500">
+              You will be redirected to Stripe's secure checkout to enter your
+              card details.
+            </p>
           </div>
         </div>
 
@@ -237,14 +230,14 @@ export default function Checkout() {
 
           <button
             type="submit"
-            className="w-full mt-6 bg-black text-white py-3 rounded-lg hover:bg-gray-900 transition"
+            disabled={loading}
+            className="w-full mt-6 bg-black text-white py-3 rounded-lg hover:bg-gray-900 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Place order
+            {loading ? "Redirecting to payment..." : "Proceed to payment"}
           </button>
 
           <p className="text-xs text-gray-500 mt-3">
-            Demo checkout: order is not charged. You'll be redirected to success
-            page.
+            Secure payment powered by Stripe.
           </p>
         </div>
       </form>

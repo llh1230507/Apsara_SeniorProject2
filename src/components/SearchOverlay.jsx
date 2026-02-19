@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "../firebase";
 
 // helper to show an image
@@ -39,7 +39,7 @@ function SearchOverlay({ open, onClose }) {
     const load = async () => {
       setLoading(true);
       try {
-        const snap = await getDocs(collection(db, "products"));
+        const snap = await getDocs(query(collection(db, "products"), limit(50)));
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setAllProducts(data);
       } catch (err) {

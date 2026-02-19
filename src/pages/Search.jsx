@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "../firebase";
 
 const getThumb = (p) => p?.imageUrl || Object.values(p?.images || {})[0] || "";
@@ -47,7 +47,7 @@ function Search() {
     const load = async () => {
       setLoading(true);
       try {
-        const snap = await getDocs(collection(db, "products"));
+        const snap = await getDocs(query(collection(db, "products"), limit(50)));
         setAllProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (err) {
         console.error("Search page load failed:", err);

@@ -180,7 +180,7 @@ export default function Profile() {
 
       <button
         onClick={handleLogout}
-        className="mt-4 text-sm text-red-600 w-full underline"
+        className="mt-3 bg-red-700 text-white w-full py-3 rounded disabled:opacity-50"
         type="button"
       >
         Logout

@@ -24,4 +24,7 @@ dist-ssr
 *.sw?
 /src/firebase.js
 Note.txt
+.env
+.firebase/
+tmpclaude-*
 

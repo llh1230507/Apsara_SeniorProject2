@@ -2,7 +2,7 @@
 import { Navigate, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 
 function formatMoney(n) {
@@ -33,7 +33,7 @@ export default function UserOrders() {
         const q = query(
           collection(db, "orders"),
           where("userId", "==", user.uid),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),limit(20)
         );
 
         const snap = await getDocs(q);
@@ -112,7 +112,15 @@ export default function UserOrders() {
                       order.status === "pending"
                         ? "bg-yellow-50 border-yellow-200 text-yellow-700"
                         : order.status === "paid"
+                        ? "bg-blue-50 border-blue-200 text-blue-700"
+                        : order.status === "processing"
+                        ? "bg-purple-50 border-purple-200 text-purple-700"
+                        : order.status === "shipped"
+                        ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                        : order.status === "completed"
                         ? "bg-green-50 border-green-200 text-green-700"
+                        : order.status === "cancelled"
+                        ? "bg-red-50 border-red-200 text-red-700"
                         : "bg-gray-50 border-gray-200 text-gray-700"
                     }`}
                   >

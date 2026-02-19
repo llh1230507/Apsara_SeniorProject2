@@ -188,7 +188,7 @@ export default function CustomizeRequest() {
                       <div className="font-semibold">
                         {r.productName || "-"}
                       </div>
-                      <div className="text-xs text-gray-400">#{r.id}</div>
+                      <div className="text-xs text-gray-400"></div>
                     </td>
 
                     <td className="py-4 pr-4 align-top">
@@ -196,7 +196,7 @@ export default function CustomizeRequest() {
                         {r.userEmail || "Guest"}
                       </div>
                       {r.userId ? (
-                        <div className="text-xs text-gray-400">{r.userId}</div>
+                        <div className="text-xs text-gray-400"></div>
                       ) : null}
                     </td>
 
