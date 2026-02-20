@@ -1,9 +1,9 @@
 // src/pages/Home.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "../firebase";
-import { FaHammer, FaGem, FaGlobeAsia } from "react-icons/fa";
+import { FaHammer, FaGem, FaGlobeAsia, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 /* ---------- Helpers ---------- */
 const getThumb = (p) => p?.imageUrl || Object.values(p?.images || {})[0] || "";
@@ -50,7 +50,10 @@ function ProductCard({ product }) {
   const img = getThumb(product);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden group border">
+    <Link
+      to={`/products/${product.category}/${product.id}`}
+      className="bg-white shadow-sm hover:shadow-lg transition overflow-hidden group border block"
+    >
       <div className="h-56 w-full overflow-hidden bg-gray-50">
         {img ? (
           <img
@@ -71,19 +74,9 @@ function ProductCard({ product }) {
         <h3 className="font-semibold text-lg mt-1 line-clamp-1">
           {product.name}
         </h3>
-
-        <div className="mt-3 flex items-center justify-between">
-          <p className="text-red-700 font-semibold">${money(product.price)}</p>
-
-          <Link
-            to={`/products/${product.category}/${product.id}`}
-            className="text-sm px-3 py-2 rounded-lg border hover:bg-gray-50"
-          >
-            View Details
-          </Link>
-        </div>
+        
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -132,23 +125,26 @@ export default function Home() {
     fetchProducts();
   }, []);
 
-  // Pick 1 product per category for Featured Products
+  // Pick up to 2 products per category for Featured Products (6 total)
   const featured = useMemo(() => {
     const byCat = {
       wood: products.filter((p) => p.category === "wood"),
       stone: products.filter((p) => p.category === "stone"),
       furniture: products.filter((p) => p.category === "furniture"),
     };
-
-    // simple pick: first item (you can change to "highest price" or "newest" later)
-    const oneEach = [
-      byCat.wood?.[0],
-      byCat.stone?.[0],
-      byCat.furniture?.[0],
-    ].filter(Boolean);
-
-    return oneEach;
+    return [
+      ...byCat.wood.slice(0, 2),
+      ...byCat.stone.slice(0, 2),
+      ...byCat.furniture.slice(0, 2),
+    ];
   }, [products]);
+
+  const scrollRef = useRef(null);
+  const scroll = useCallback((dir) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: dir * 300, behavior: "smooth" });
+    }
+  }, []);
 
   const handleBannerClick = () => {
     navigate("/products");
@@ -244,8 +240,7 @@ export default function Home() {
             </div>
             <h3 className="mt-4 font-semibold">Authentic Materials</h3>
             <p className="mt-2 text-sm text-gray-600">
-              Sourced from the finest materials for long lasting
-              beauty.
+              Sourced from the finest materials for long lasting beauty.
             </p>
           </div>
 
@@ -262,7 +257,7 @@ export default function Home() {
       </div>
 
       {/* ===== FEATURED PRODUCTS ===== */}
-      <div className="max-w-7xl mx-auto px-6 py-14">
+      <div className="max-w-7xl mx-auto px-16 py-14">
         <div className="text-center">
           <h2 className="text-3xl font-bold">Featured Products</h2>
         </div>
@@ -274,12 +269,36 @@ export default function Home() {
             No products available yet. Add products from Admin.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
-            {featured.map((p, i) => (
-              <Reveal key={p.id} delay={i * 120}>
-                <ProductCard product={p} />
-              </Reveal>
-            ))}
+          <div className="relative mt-10">
+            {/* Left arrow */}
+            <button
+              onClick={() => scroll(-1)}
+              className="absolute -left-12 top-1/2 -translate-y-1/2 z-10 bg-white border rounded-full w-10 h-10 flex items-center justify-center shadow hover:bg-gray-100 transition"
+              aria-label="Scroll left"
+            >
+              <FaChevronLeft className="text-gray-600 text-sm" />
+            </button>
+
+            {/* Scrollable row */}
+            <div
+              ref={scrollRef}
+              className="flex gap-6 overflow-x-auto scroll-smooth scrollbar-hide pb-2"
+            >
+              {featured.map((p) => (
+                <div key={p.id} className="min-w-[260px] max-w-[260px]">
+                  <ProductCard product={p} />
+                </div>
+              ))}
+            </div>
+
+            {/* Right arrow */}
+            <button
+              onClick={() => scroll(1)}
+              className="absolute -right-12 top-1/2 -translate-y-1/2 z-10 bg-white border rounded-full w-10 h-10 flex items-center justify-center shadow hover:bg-gray-100 transition"
+              aria-label="Scroll right"
+            >
+              <FaChevronRight className="text-gray-600 text-sm" />
+            </button>
           </div>
         )}
 

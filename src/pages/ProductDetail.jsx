@@ -14,6 +14,7 @@ import { db } from "../firebase";
 import { useCart } from "../context/CartContext";
 import Viewer360 from "../components/Viewer360";
 import { useFavorites } from "../context/FavoritesContext";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
 
 // helpers
 const getMainImage = (p) =>
@@ -264,15 +265,19 @@ export default function ProductDetail() {
         {/* Details */}
         <div className="space-y-6">
           <div>
-            <div className="flex items-start gap-3 mb-2">
+            <div className="flex items-start justify-between max-w-md mb-2">
               <h1 className="text-3xl font-bold">{product.name}</h1>
               <button
                 onClick={() => toggleFavorite(product)}
-                className="text-3xl transition hover:scale-110 ml-40"
+                className="text-3xl transition hover:scale-110 mt-1"
                 aria-label="Add to favorites"
                 type="button"
               >
-                {isFavorite(product.id) ? "❤️" : "🤍"}
+                {isFavorite(product.id) ? (
+                  <FaHeart className="text-red-500" />
+                ) : (
+                  <FaRegHeart className="text-gray-400" />
+                )}
               </button>
             </div>
 
