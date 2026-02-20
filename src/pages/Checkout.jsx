@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthModal } from "../context/AuthModalContext";
 import { functions } from "../firebase";
-import { FaShoppingCart } from "react-icons/fa";
+import { FaShoppingCart, FaArrowLeft } from "react-icons/fa";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -72,15 +72,16 @@ export default function Checkout() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-5">
-      <div className="mb-8 flex items-center">
-        <h1 className="text-3xl font-bold">Checkout</h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-3xl font-bold mr-">Checkout</h1>
         <NavLink
           to="/cart"
-          className="text-sm text-gray-500 hover:text-red-700 inline-flex items-center gap-2 ml-auto"
+          className="inline-flex items-center gap-2 text-sm font-medium text-black-700 hover:text-red-700 border border-gray-200 hover:border-red-200 rounded-full px-4 py-2 transition"
         >
-          {" "}
-          ← Return to Cart{" "}
+          <FaArrowLeft className="text-xs" />
+          Return to Cart
         </NavLink>
+        
       </div>
 
       {error && (
@@ -177,7 +178,7 @@ export default function Checkout() {
 
         {/* RIGHT: Order summary */}
         <div className="bg-white rounded-xl shadow p-6 h-fit">
-          <h2 className="text-xl font-semibold mb-4">Order summary</h2>
+          <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
 
           <div className="space-y-4 max-h-[360px] overflow-auto pr-2">
             {cartItems.map((item) => (
@@ -231,7 +232,7 @@ export default function Checkout() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-6 bg-black text-white py-3 rounded-lg hover:bg-gray-900 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full mt-6 bg-red-700 text-white py-3 rounded-lg hover:bg-red-900 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? "Redirecting to payment..." : "Proceed to payment"}
           </button>

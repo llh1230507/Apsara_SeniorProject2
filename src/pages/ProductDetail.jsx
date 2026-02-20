@@ -237,6 +237,7 @@ export default function ProductDetail() {
             <img
               src={mainImage}
               alt={product.name}
+              loading="lazy"
               className="w-full h-[420px] object-cover shadow"
             />
           )}
@@ -539,6 +540,7 @@ export default function ProductDetail() {
                   <img
                     src={img}
                     alt={p.name}
+                    loading="lazy"
                     className="w-full h-44 object-cover"
                   />
 

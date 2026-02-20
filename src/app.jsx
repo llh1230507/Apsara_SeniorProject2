@@ -1,104 +1,111 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
-// Layouts
+// Layouts (always needed — keep eager)
 import UserLayout from "./layouts/UserLayout";
 import AdminLayout from "./layouts/AdminLayout";
-import BareLayout from "./layouts/BareLayout"; // ✅ ADD
+import BareLayout from "./layouts/BareLayout";
 
-// USER pages
-import Home from "./pages/Home";
-import Products from "./pages/Products";
-import Customize from "./pages/Customize";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import ProductDetail from "./pages/ProductDetail";
-import Search from "./pages/Search";
-import Cart from "./pages/Cart";
-import Favorites from "./pages/Favorites";
-import Checkout from "./pages/Checkout";
-import OrderSuccess from "./pages/OrderSucess";
-import Profile from "./pages/Profile";
-import UserOrders from "./pages/UserOrders";
-
-
-// ADMIN pages
-import Dashboard from "./pages/admin/Dashboard";
-import AdminLogin from "./pages/admin/AdminLogin";
-import Product from "./pages/admin/Product";
-import Orders from "./pages/admin/Orders";
-import CustomizeRequest from "./pages/admin/CustomizeRequest";
-import Users from "./pages/admin/Users";
-
-// Route guards
+// Route guards (always needed — keep eager)
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
 
+// USER pages (lazy loaded)
+const Home = lazy(() => import("./pages/Home"));
+const Products = lazy(() => import("./pages/Products"));
+const Customize = lazy(() => import("./pages/Customize"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const Search = lazy(() => import("./pages/Search"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Favorites = lazy(() => import("./pages/Favorites"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const OrderSuccess = lazy(() => import("./pages/OrderSucess"));
+const Profile = lazy(() => import("./pages/Profile"));
+const UserOrders = lazy(() => import("./pages/UserOrders"));
+
+// ADMIN pages (lazy loaded)
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const Product = lazy(() => import("./pages/admin/Product"));
+const Orders = lazy(() => import("./pages/admin/Orders"));
+const CustomizeRequest = lazy(() => import("./pages/admin/CustomizeRequest"));
+const Users = lazy(() => import("./pages/admin/Users"));
+
 function App() {
   return (
-    <Routes>
-      {/* ================= USER (with Navbar/Footer) ================= */}
-      <Route element={<UserLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/products/:category/:id" element={<ProductDetail />} />
-        <Route path="/customize" element={<Customize />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/favorites" element={<Favorites />} />
-        
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-gray-400">
+          Loading...
+        </div>
+      }
+    >
+      <Routes>
+        {/* ================= USER (with Navbar/Footer) ================= */}
+        <Route element={<UserLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:category/:id" element={<ProductDetail />} />
+          <Route path="/customize" element={<Customize />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/favorites" element={<Favorites />} />
 
-        {/* 🔐 USER AUTH REQUIRED (still with Navbar/Footer) */}
+          {/* 🔐 USER AUTH REQUIRED (still with Navbar/Footer) */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <ProtectedRoute>
+                <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* ================= BARE (no Navbar/Footer) ================= */}
+        <Route element={<BareLayout />}>
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/order-success" element={<OrderSuccess />} />
+        </Route>
+
+        {/* ================= ADMIN ================= */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+
         <Route
-          path="/profile"
+          path="/admin"
           element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
           }
-        />
-        <Route
-          path="/orders"
-          element={
-            <ProtectedRoute>
-              <UserOrders />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
-
-      {/* ================= BARE (no Navbar/Footer) ================= */}
-      <Route element={<BareLayout />}>
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute>
-              <Checkout />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/order-success" element={<OrderSuccess />} />
-      </Route>
-
-      {/* ================= ADMIN ================= */}
-      <Route path="/admin/login" element={<AdminLogin />} />
-
-      <Route
-        path="/admin"
-        element={
-          <AdminRoute>
-            <AdminLayout />
-          </AdminRoute>
-        }
-      >
-        <Route index element={<Dashboard />} />
-        <Route path="product" element={<Product />} />
-        <Route path="orders" element={<Orders />} />
-        <Route path="customize" element={<CustomizeRequest />} />
-        <Route path="users" element={<Users />} />
-      </Route>
-    </Routes>
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="product" element={<Product />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="customize" element={<CustomizeRequest />} />
+          <Route path="users" element={<Users />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 

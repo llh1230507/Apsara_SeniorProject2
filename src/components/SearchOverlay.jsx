@@ -120,6 +120,7 @@ function SearchOverlay({ open, onClose }) {
                       <img
                         src={getThumb(m)}
                         alt={m.name}
+                        loading="lazy"
                         className="h-10 w-10 rounded object-cover"
                       />
                       <div className="flex-1">

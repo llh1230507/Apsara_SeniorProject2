@@ -35,7 +35,7 @@ function Dashboard() {
             query(
               collection(db, "orders"),
               orderBy("createdAt", "desc"),
-              limit(500),
+              limit(100),
             ),
           ),
         ]);

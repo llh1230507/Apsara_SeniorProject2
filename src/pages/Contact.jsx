@@ -28,7 +28,7 @@ function Contact() {
                 {/* Email */}
                 <div className="flex items-start gap-3">
                   <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <FiMail className="text-gray-700" />
+                    <FiMail className="text-red-700" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Email</p>
@@ -39,7 +39,7 @@ function Contact() {
                 {/* Phone */}
                 <div className="flex items-start gap-3">
                   <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <FiPhone className="text-gray-700" />
+                    <FiPhone className="text-red-700" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Phone</p>
@@ -50,7 +50,7 @@ function Contact() {
                 {/* Hours */}
                 <div className="flex items-start gap-3">
                   <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <FiClock className="text-gray-700" />
+                    <FiClock className="text-red-700" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Hours</p>
@@ -75,7 +75,7 @@ function Contact() {
                 {/* Phnom Penh */}
                 <div className="flex items-start gap-3 rounded-xl border bg-gray-50 p-4">
                   <div className="h-10 w-10 rounded-lg bg-white border flex items-center justify-center">
-                    <FiMapPin className="text-gray-700" />
+                    <FiMapPin className="text-red-700" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Phnom Penh #1</p>
@@ -85,14 +85,14 @@ function Contact() {
                   </div>
                 </div>
 
-                {/* Jroy Jongva */}
+                {/* Chrouy Chongva */}
                 <div className="flex items-start gap-3 rounded-xl border bg-gray-50 p-4">
                   <div className="h-10 w-10 rounded-lg bg-white border flex items-center justify-center">
-                    <FiMapPin className="text-gray-700" />
+                    <FiMapPin className="text-red-700" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Phnom Penh #2</p>
-                    <p className="text-sm text-gray-500">National Street 6A</p>
+                    <p className="text-sm text-gray-500">National Street 6A, Chrouy Chongva</p>
                   </div>
                 </div>
               </div>

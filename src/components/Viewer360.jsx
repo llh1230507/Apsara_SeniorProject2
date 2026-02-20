@@ -12,14 +12,6 @@ export default function Viewer360({ frames = [], alt = "360 view" }) {
     setIndex(0);
   }, [total]);
 
-  // Preload frames for smoothness
-  useEffect(() => {
-    frames.forEach((src) => {
-      const img = new Image();
-      img.src = src;
-    });
-  }, [frames]);
-
   const clampIndex = (i) => {
     if (total === 0) return 0;
     return (i + total) % total;
