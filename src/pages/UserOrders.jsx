@@ -23,10 +23,9 @@ export default function UserOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔐 must be logged in
-  if (!user) return <Navigate to="/login" replace />;
-
   useEffect(() => {
+    if (!user) return;
+
     const fetchOrders = async () => {
       setLoading(true);
       try {
@@ -47,13 +46,16 @@ export default function UserOrders() {
     };
 
     fetchOrders();
-  }, [user.uid]);
+  }, [user?.uid]);
 
   const totalOrders = orders.length;
 
   const totalSpent = useMemo(() => {
     return orders.reduce((sum, o) => sum + Number(o.subtotal || 0), 0);
   }, [orders]);
+
+  // 🔐 must be logged in
+  if (!user) return <Navigate to="/login" replace />;
 
   if (loading) {
     return <p className="p-8 pt-24">Loading your orders...</p>;
@@ -141,9 +143,12 @@ export default function UserOrders() {
                     <p className="text-gray-600">
                       {order.customer.fullName}
                       <br />
-                      {order.customer.address}
+                      {[order.customer.houseNumber, order.customer.street].filter(Boolean).join(" ")}
+                      {(order.customer.houseNumber || order.customer.street) && <br />}
+                      {order.customer.city}{order.customer.province ? `, ${order.customer.province}` : ""}
                       <br />
-                      {order.customer.city}, {order.customer.country}
+                      {order.customer.country}
+                      {order.customer.postalCode ? ` ${order.customer.postalCode}` : ""}
                     </p>
                   </div>
 

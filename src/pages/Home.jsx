@@ -1,8 +1,7 @@
 // src/pages/Home.jsx
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { collection, getDocs, limit, query } from "firebase/firestore";
-import { db } from "../firebase";
+import { useProducts } from "../hooks/useProducts";
 import { FaHammer, FaGem, FaGlobeAsia, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 /* ---------- Helpers ---------- */
@@ -87,8 +86,7 @@ export default function Home() {
   const bannerImages = ["/banner.jpg", "/banner2.jpg", "/banner3.jpg"];
   const [current, setCurrent] = useState(0);
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { products, loading } = useProducts();
 
   // Auto slideshow
   useEffect(() => {
@@ -97,33 +95,6 @@ export default function Home() {
     }, 8000);
     return () => clearInterval(t);
   }, [bannerImages.length]);
-
-  // Fetch products from Firestore
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-
-        // Pull some products (you can increase limit later)
-        const qy = query(collection(db, "products"), limit(60));
-        const snap = await getDocs(qy);
-
-        const data = snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-
-        setProducts(data);
-      } catch (err) {
-        console.error("Failed to fetch products:", err);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
 
   // Pick up to 2 products per category for Featured Products (6 total)
   const featured = useMemo(() => {
@@ -154,7 +125,7 @@ export default function Home() {
     <div className="text-black">
       {/* ===== HERO / BANNER (CLICKABLE) ===== */}
       <div
-        className="relative h-[720px] w-full overflow-hidden cursor-pointer group"
+        className="relative h-[60vh] md:h-[720px] w-full overflow-hidden cursor-pointer group"
         onClick={handleBannerClick}
       >
         {bannerImages.map((src, idx) => (
@@ -257,7 +228,7 @@ export default function Home() {
       </div>
 
       {/* ===== FEATURED PRODUCTS ===== */}
-      <div className="max-w-7xl mx-auto px-16 py-14">
+      <div className="max-w-7xl mx-auto px-4 md:px-16 py-14">
         <div className="text-center">
           <h2 className="text-3xl font-bold">Featured Products</h2>
         </div>
@@ -273,7 +244,7 @@ export default function Home() {
             {/* Left arrow */}
             <button
               onClick={() => scroll(-1)}
-              className="absolute -left-12 top-1/2 -translate-y-1/2 z-10 bg-white border rounded-full w-10 h-10 flex items-center justify-center shadow hover:bg-gray-100 transition"
+              className="hidden md:flex absolute -left-12 top-1/2 -translate-y-1/2 z-10 bg-white border rounded-full w-10 h-10 items-center justify-center shadow hover:bg-gray-100 transition"
               aria-label="Scroll left"
             >
               <FaChevronLeft className="text-gray-600 text-sm" />
@@ -294,7 +265,7 @@ export default function Home() {
             {/* Right arrow */}
             <button
               onClick={() => scroll(1)}
-              className="absolute -right-12 top-1/2 -translate-y-1/2 z-10 bg-white border rounded-full w-10 h-10 flex items-center justify-center shadow hover:bg-gray-100 transition"
+              className="hidden md:flex absolute -right-12 top-1/2 -translate-y-1/2 z-10 bg-white border rounded-full w-10 h-10 items-center justify-center shadow hover:bg-gray-100 transition"
               aria-label="Scroll right"
             >
               <FaChevronRight className="text-gray-600 text-sm" />

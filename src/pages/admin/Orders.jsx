@@ -116,6 +116,7 @@ export default function Orders() {
                 <th className="p-3">Customer</th>
                 <th className="p-3">Items</th>
                 <th className="p-3">Total</th>
+                <th className="p-3">Payment</th>
                 <th className="p-3">Status</th>
                 <th className="p-3"></th>
               </tr>
@@ -145,6 +146,17 @@ export default function Orders() {
                     </td>
                     <td className="p-3 font-semibold">
                       ${formatMoney(order.subtotal)}
+                    </td>
+                    <td className="p-3">
+                      {order.paymentMethod === "cod" ? (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          Pay on Arrival
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          Card
+                        </span>
+                      )}
                     </td>
                     <td className="p-3">
                       <select
@@ -189,7 +201,7 @@ export default function Orders() {
                       key={`${order.id}-expanded`}
                       className="bg-gray-50 border-t"
                     >
-                      <td colSpan={7} className="p-4">
+                      <td colSpan={8} className="p-4">
                         <div className="grid sm:grid-cols-2 gap-6">
                           {/* Shipping info */}
                           <div>
@@ -197,9 +209,12 @@ export default function Orders() {
                               Shipping Address
                             </p>
                             <p className="text-gray-600 text-sm">
-                              {order.customer?.address}
+                              {[order.customer?.houseNumber, order.customer?.street].filter(Boolean).join(" ")}
+                              {order.customer?.houseNumber || order.customer?.street ? <br /> : null}
+                              {order.customer?.city}{order.customer?.province ? `, ${order.customer.province}` : ""}
                               <br />
-                              {order.customer?.city}, {order.customer?.country}
+                              {order.customer?.country}
+                              {order.customer?.postalCode ? ` ${order.customer.postalCode}` : ""}
                               <br />
                               {order.customer?.phone}
                             </p>

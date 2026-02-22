@@ -12,6 +12,11 @@ import {
 import { db } from "../../firebase";
 import emailjs from "@emailjs/browser";
 
+const CATEGORY_LABELS = {
+  wood: "Wood Sculptures",
+  stone: "Stone Art",
+  furniture: "Furniture",
+};
 
 const fmtNum = (n) => Number(n || 0);
 
@@ -20,31 +25,32 @@ export default function CustomizeRequest() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState({});
 
-  const sendDecisionEmail = async ({ to, status, productName }) => {
-  const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-  const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-  const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+  const sendDecisionEmail = async ({ to, status, category }) => {
+    const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+    const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+    const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-  const subject =
-    status === "accepted"
-      ? "Your customization request is accepted ✅"
-      : "Update on your customization request";
+    const productLabel =
+      CATEGORY_LABELS[category] || category || "your product";
 
-  const message =
-    status === "accepted"
-      ? `Thank you for your request. Your request is accepted. We will contact you soon. Thank you.\n\nProduct: ${productName}`
-      : `Thank you for your request. Unfortunately, we cannot fulfill your request. Hope we can help you next time. Thank you.\n\nProduct: ${productName}`;
+    const subject =
+      status === "accepted"
+        ? "Your customization request is accepted ✅"
+        : "Update on your customization request";
 
-  // these must match your EmailJS template variables
-  const templateParams = {
-    to_email: to,
-    subject,
-    message,
+    const message =
+      status === "accepted"
+        ? `Thank you for your request. Your request is accepted. We will contact you soon. Thank you.\n\nProduct Category: ${productLabel}`
+        : `Thank you for your request. Unfortunately, we cannot fulfill your request. Hope we can help you next time. Thank you.\n\nProduct Category: ${productLabel}`;
+
+    const templateParams = {
+      to_email: to,
+      subject,
+      message,
+    };
+
+    return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
   };
-
-  return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-};
-
 
   useEffect(() => {
     const q = query(
@@ -88,34 +94,33 @@ export default function CustomizeRequest() {
   };
 
   const updateStatus = async (reqDoc, status) => {
-  const id = reqDoc.id;
-  setBusy((b) => ({ ...b, [id]: true }));
+    const id = reqDoc.id;
+    setBusy((b) => ({ ...b, [id]: true }));
 
-  try {
-    // 1) update Firestore
-    await updateDoc(doc(db, "customizationRequests", id), { status });
+    try {
+      // 1) update Firestore
+      await updateDoc(doc(db, "customizationRequests", id), { status });
 
-    // 2) send email (only if email exists)
-    const to = reqDoc.email || reqDoc.userEmail;
-    if (to) {
-      await sendDecisionEmail({
-        to,
-        status,
-        productName: reqDoc.productName || "your product",
+      // 2) send email (only if email exists)
+      const to = reqDoc.email || reqDoc.userEmail;
+      if (to) {
+        await sendDecisionEmail({
+          to,
+          status,
+          category: reqDoc.category || "",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update / email");
+    } finally {
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[id];
+        return next;
       });
     }
-  } catch (err) {
-    console.error(err);
-    alert("Failed to update / email");
-  } finally {
-    setBusy((b) => {
-      const next = { ...b };
-      delete next[id];
-      return next;
-    });
-  }
-};
-
+  };
 
   const statusBadge = (status = "pending") => {
     const styles = {
@@ -156,10 +161,11 @@ export default function CustomizeRequest() {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b text-gray-600">
-                <th className="py-3 text-left whitespace-nowrap">Product</th>
+                <th className="py-3 text-left whitespace-nowrap">Category</th>
                 <th className="py-3 text-left whitespace-nowrap">Customer</th>
                 <th className="py-3 text-left whitespace-nowrap">Contact</th>
                 <th className="py-3 text-left whitespace-nowrap">Size (cm)</th>
+                <th className="py-3 text-left whitespace-nowrap">Duration</th>
                 <th className="py-3 text-left">Details</th>
                 <th className="py-3 text-left whitespace-nowrap">Image</th>
                 <th className="py-3 text-left whitespace-nowrap">Date</th>
@@ -186,9 +192,8 @@ export default function CustomizeRequest() {
                   >
                     <td className="py-4 pr-4 align-top">
                       <div className="font-semibold">
-                        {r.productName || "-"}
+                        {CATEGORY_LABELS[r.category] || r.category || "-"}
                       </div>
-                      <div className="text-xs text-gray-400"></div>
                     </td>
 
                     <td className="py-4 pr-4 align-top">
@@ -210,6 +215,10 @@ export default function CustomizeRequest() {
 
                     <td className="py-4 pr-4 align-top text-gray-700 whitespace-nowrap">
                       {W}×{L}×{H}
+                    </td>
+
+                    <td className="py-4 pr-4 align-top text-gray-700 whitespace-nowrap">
+                      {r.duration || "-"}
                     </td>
 
                     <td className="py-4 pr-4 align-top max-w-sm">
@@ -291,7 +300,7 @@ export default function CustomizeRequest() {
 
               {!requests.length && (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-gray-400">
+                  <td colSpan={10} className="py-10 text-center text-gray-400">
                     No customization requests yet
                   </td>
                 </tr>

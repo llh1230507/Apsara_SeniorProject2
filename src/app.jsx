@@ -24,6 +24,7 @@ const Checkout = lazy(() => import("./pages/Checkout"));
 const OrderSuccess = lazy(() => import("./pages/OrderSucess"));
 const Profile = lazy(() => import("./pages/Profile"));
 const UserOrders = lazy(() => import("./pages/UserOrders"));
+const MyCustomizations = lazy(() => import("./pages/MyCustomizations"));
 
 // ADMIN pages (lazy loaded)
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -69,6 +70,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <UserOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-customizations"
+            element={
+              <ProtectedRoute>
+                <MyCustomizations />
               </ProtectedRoute>
             }
           />

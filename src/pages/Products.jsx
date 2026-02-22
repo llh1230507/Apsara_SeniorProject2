@@ -1,8 +1,7 @@
 // src/pages/Products.jsx
 import { Link } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, limit, query } from "firebase/firestore";
-import { db } from "../firebase";
+import { useMemo, useState } from "react";
+import { useProducts } from "../hooks/useProducts";
 
 const money = (n) => Number(n || 0).toFixed(2);
 
@@ -10,7 +9,7 @@ const getThumb = (p) => {
   return (
     p?.imageUrl ||
     Object.values(p?.images || {})[0] ||
-    "https://via.placeholder.com/600x450?text=No+Image"
+    null
   );
 };
 
@@ -29,8 +28,8 @@ const PRICE_RANGES = [
 ];
 
 export default function Products() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { products, loading } = useProducts();
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // filters
   const [category, setCategory] = useState("all");
@@ -39,23 +38,6 @@ export default function Products() {
 
   // sort
   const [sortBy, setSortBy] = useState("featured"); // featured | priceAsc | priceDesc | nameAsc
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const snap = await getDocs(query(collection(db, "products"), limit(50)));
-        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setProducts(data);
-      } catch (err) {
-        console.error("Failed to fetch products:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
 
   const toggleRange = (key) => {
     setSelectedRanges((prev) => {
@@ -121,7 +103,7 @@ export default function Products() {
       <div className="max-w-7xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10">
           {/* ===== SIDEBAR ===== */}
-          <aside className="lg:sticky lg:top-24 h-fit">
+          <aside className={`${filtersOpen ? "block" : "hidden"} lg:block lg:sticky lg:top-24 h-fit`}>
             <div className="border rounded-xl p-5">
               <div className="flex items-start justify-between">
                 <div>
@@ -204,7 +186,16 @@ export default function Products() {
               </div>
 
               <div className="flex items-center gap-3">
-                <label className="text-sm text-gray-600">Sort by:</label>
+                {/* Filter toggle — mobile only */}
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((prev) => !prev)}
+                  className="lg:hidden border rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  {filtersOpen ? "Hide Filters" : "Filters"}
+                </button>
+
+                <label className="text-sm text-gray-600 hidden sm:block">Sort by:</label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -232,12 +223,18 @@ export default function Products() {
                     className="border overflow-hidden bg-white hover:shadow-lg transition block"
                   >
                     <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
-                      <img
-                        src={getThumb(p)}
-                        alt={p.name}
-                        className="h-full w-full object-cover hover:scale-105 transition duration-500"
-                        loading="lazy"
-                      />
+                      {getThumb(p) ? (
+                        <img
+                          src={getThumb(p)}
+                          alt={p.name}
+                          className="h-full w-full object-cover hover:scale-105 transition duration-500"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-gray-400 text-sm">
+                          No Image
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-4">

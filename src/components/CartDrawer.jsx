@@ -10,10 +10,13 @@ export default function CartDrawer({ isOpen, onClose }) {
 
   const { cartItems, updateQuantity, removeFromCart } = useCart();
 
-  const totalItems = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totalItems = cartItems.reduce(
+    (sum, item) => sum + (item.quantity || 0),
+    0,
+  );
   const subtotal = cartItems.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
-    0
+    0,
   );
 
   const handleCheckout = () => {
@@ -35,12 +38,14 @@ export default function CartDrawer({ isOpen, onClose }) {
       )}
 
       <div
-        className={`fixed top-0 right-0 h-full w-[380px] bg-white z-50 shadow-xl transform transition-transform duration-300 flex flex-col ${
+        className={`fixed top-0 right-0 h-full w-full sm:w-[380px] bg-white z-50 shadow-xl transform transition-transform duration-300 flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-xl font-semibold">Your cart ({totalItems} items)</h2>
+          <h2 className="text-xl font-semibold">
+            Your cart ({totalItems} items)
+          </h2>
           <button onClick={onClose} className="text-2xl" type="button">
             ×
           </button>
@@ -87,7 +92,9 @@ export default function CartDrawer({ isOpen, onClose }) {
 
                 <div className="flex-1">
                   <h3 className="font-medium">{item.name}</h3>
-                  <p className="text-sm text-gray-500">${Number(item.price || 0).toFixed(2)}</p>
+                  <p className="text-sm text-gray-500">
+                    ${Number(item.price || 0).toFixed(2)}
+                  </p>
 
                   <div className="flex items-center gap-3 mt-2">
                     <button
@@ -115,7 +122,9 @@ export default function CartDrawer({ isOpen, onClose }) {
 
                   {/* Optional: show stock info */}
                   {Number.isFinite(maxStock) && (
-                    <p className="text-xs text-gray-500 mt-1">Stock: {maxStock}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Stock: {maxStock}
+                    </p>
                   )}
 
                   <button
@@ -128,7 +137,10 @@ export default function CartDrawer({ isOpen, onClose }) {
                 </div>
 
                 <p className="font-medium">
-                  ${(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}
+                  $
+                  {(
+                    Number(item.price || 0) * Number(item.quantity || 0)
+                  ).toFixed(2)}
                 </p>
               </div>
             );
