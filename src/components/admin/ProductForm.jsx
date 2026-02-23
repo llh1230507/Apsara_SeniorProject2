@@ -1,5 +1,7 @@
 // src/components/admin/ProductForm.jsx
 import { useEffect, useMemo, useState } from "react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "../../firebase";
 
 const DEFAULT_MATERIAL_PRICE = { standard: 0, premium: 60 };
 
@@ -17,13 +19,14 @@ export default function ProductForm({
   // ✅ one-size product dimensions
   const [size, setSize] = useState({ width: "", length: "", height: "" });
 
-  // color -> image map (base64 demo)
+  // color -> image map (Storage URLs)
   const [images, setImages] = useState({});
   const [imageUrl, setImageUrl] = useState("");
 
   const [color, setColor] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   // ✅ material price
   const [materialPrice, setMaterialPrice] = useState(DEFAULT_MATERIAL_PRICE);
@@ -64,29 +67,35 @@ export default function ProductForm({
     setColor("");
   }, [editingProduct]);
 
-  /* ---------- File → base64 ---------- */
+  /* ---------- File → preview (raw File stored, not base64) ---------- */
   const handleFileChange = (e) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreview(reader.result);
-      setFile(reader.result);
-    };
-    reader.readAsDataURL(selected);
+    setPreview(URL.createObjectURL(selected));
+    setFile(selected);
   };
 
-  /* ---------- Add color image ---------- */
-  const addImage = () => {
+  /* ---------- Add color image (uploads to Firebase Storage) ---------- */
+  const addImage = async () => {
     if (!color || !file) return;
 
     const key = color.trim().toLowerCase();
-    const updated = { ...images, [key]: file };
-    setImages(updated);
+    setUploading(true);
+    try {
+      const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const storageRef = ref(storage, `products/uploads/${uniqueId}/${key}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
 
-    // set first image as main if none
-    if (!imageUrl) setImageUrl(file);
+      const updated = { ...images, [key]: url };
+      setImages(updated);
+
+      if (!imageUrl) setImageUrl(url);
+    } catch (err) {
+      setError("Image upload failed: " + err.message);
+    } finally {
+      setUploading(false);
+    }
 
     setColor("");
     setFile(null);
@@ -195,7 +204,6 @@ export default function ProductForm({
           <h2 className="text-lg font-semibold">
             {editingProduct ? "Edit Product" : "Add Product"}
           </h2>
-         
 
           {editingProduct?.name ? (
             <div className="mt-3 inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-white border">
@@ -350,7 +358,6 @@ export default function ProductForm({
         {/* Material pricing */}
         <section className="border rounded-xl p-4">
           <h3 className="font-semibold mb-1">Material Pricing</h3>
-          
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div className="space-y-1">
@@ -419,8 +426,6 @@ export default function ProductForm({
               </div>
             ))}
           </div>
-
-          
         </section>
 
         {/* Color images */}
@@ -440,9 +445,10 @@ export default function ProductForm({
             <button
               type="button"
               onClick={addImage}
-              className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50 text-sm"
+              disabled={uploading}
+              className="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50 text-sm disabled:opacity-50"
             >
-              Add
+              {uploading ? "Uploading..." : "Add"}
             </button>
           </div>
 

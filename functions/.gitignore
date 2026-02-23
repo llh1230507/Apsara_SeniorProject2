@@ -1,3 +1,4 @@
 node_modules/
 *.localsendgrid.env
 sendgrid.env
+serviceAccountKey.json
