@@ -234,7 +234,18 @@ export default function Home() {
         </div>
 
         {loading ? (
-          <p className="text-center text-gray-500 mt-10">Loading...</p>
+          <div className="mt-10 flex gap-6 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="border rounded overflow-hidden animate-pulse flex-shrink-0 w-64">
+                <div className="aspect-[4/3] bg-gray-200" />
+                <div className="p-4 space-y-2">
+                  <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  <div className="h-4 bg-gray-200 rounded w-2/3" />
+                  <div className="h-4 bg-gray-200 rounded w-1/4" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : featured.length === 0 ? (
           <p className="text-center text-gray-500 mt-10">
             No products available yet. Add products from Admin.

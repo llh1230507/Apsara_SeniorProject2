@@ -180,7 +180,7 @@ export default function Customize() {
         {/* Size */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="block text-sm font-semibold mb-1">Height</label>
+            <label className="block text-sm font-semibold mb-1">Height *</label>
             <input
               type="number"
               placeholder="cm"
@@ -190,7 +190,7 @@ export default function Customize() {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold mb-1">Width</label>
+            <label className="block text-sm font-semibold mb-1">Width *</label>
             <input
               type="number"
               placeholder="cm"
@@ -200,7 +200,7 @@ export default function Customize() {
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold mb-1">Length</label>
+            <label className="block text-sm font-semibold mb-1">Length *</label>
             <input
               type="number"
               placeholder="cm"

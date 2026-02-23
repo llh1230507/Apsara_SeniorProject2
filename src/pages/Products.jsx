@@ -95,7 +95,39 @@ export default function Products() {
   };
 
   if (loading) {
-    return <div className="p-10 text-gray-600">Loading products…</div>;
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10">
+            {/* Sidebar skeleton */}
+            <aside className="hidden lg:block">
+              <div className="border rounded-xl p-5 space-y-4 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-4 bg-gray-200 rounded w-2/3" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+              </div>
+            </aside>
+            {/* Product grid skeleton */}
+            <main>
+              <div className="h-6 bg-gray-200 rounded w-40 mb-8 animate-pulse" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="border rounded overflow-hidden animate-pulse">
+                    <div className="aspect-[4/3] bg-gray-200" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-3 bg-gray-200 rounded w-1/3" />
+                      <div className="h-4 bg-gray-200 rounded w-2/3" />
+                      <div className="h-4 bg-gray-200 rounded w-1/4" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
