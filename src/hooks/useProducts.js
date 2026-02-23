@@ -13,7 +13,7 @@ function startFetch() {
   _promise = (async () => {
     try {
       const snap = await getDocs(
-        query(collection(db, "products"), limit(60)),
+        query(collection(db, "products"), limit(12)),
       );
       const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       _cache = data;

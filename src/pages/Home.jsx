@@ -83,7 +83,7 @@ function ProductCard({ product }) {
 export default function Home() {
   const navigate = useNavigate();
 
-  const bannerImages = ["/banner.jpg", "/banner2.jpg", "/banner3.jpg"];
+  const bannerImages = ["/banner.webp", "/banner2.webp", "/banner3.webp"];
   const [current, setCurrent] = useState(0);
 
   const { products, loading } = useProducts();
