@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate, NavLink } from "react-router-dom";
 import { httpsCallable } from "firebase/functions";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, writeBatch, doc, increment } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthModal } from "../context/AuthModalContext";
@@ -141,11 +141,22 @@ export default function Checkout() {
             imageUrl: item.imageUrl || "",
             category: item.category || "",
             selectedColor: item.selectedColor || "",
-            selectedSize: item.selectedSize || "",
+
             selectedMaterial: item.selectedMaterial || "",
             variantKey: item.variantKey || "",
           })),
         });
+
+        // Decrement stock for each item
+        const batch = writeBatch(db);
+        for (const item of cartItems) {
+          if (item.id) {
+            batch.update(doc(db, "products", item.id), {
+              stock: increment(-Number(item.quantity || 0)),
+            });
+          }
+        }
+        await batch.commit();
 
         clearCart();
         navigate("/order-success");
@@ -363,7 +374,7 @@ export default function Checkout() {
           <div className="space-y-4 max-h-[360px] overflow-auto pr-2">
             {cartItems.map((item) => (
               <div
-                key={`${item.id}-${item.selectedColor}-${item.selectedSize}-${item.selectedMaterial}`}
+                key={`${item.id}-${item.selectedColor}-${item.selectedMaterial}`}
                 className="flex gap-4"
               >
                 <img
@@ -374,8 +385,7 @@ export default function Checkout() {
                 <div className="flex-1">
                   <p className="font-medium">{item.name}</p>
                   <p className="text-sm text-gray-500">
-                    {item.category} • {item.selectedColor} •{" "}
-                    {item.selectedSize} • {item.selectedMaterial}
+                    {item.category} • {item.selectedColor} • {item.selectedMaterial}
                   </p>
                   <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                 </div>

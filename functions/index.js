@@ -153,13 +153,31 @@ exports.stripeWebhook = onRequest(
           break;
         }
 
-        await db.collection("orders").doc(orderId).update({
+        const orderSnap = await db.collection("orders").doc(orderId).get();
+        const orderData = orderSnap.data();
+
+        const batch = db.batch();
+
+        batch.update(db.collection("orders").doc(orderId), {
           status: "paid",
           paidAt: admin.firestore.FieldValue.serverTimestamp(),
           stripePaymentIntent: session.payment_intent,
         });
 
-        console.log(`Order ${orderId} marked as paid.`);
+        if (orderData?.items) {
+          for (const item of orderData.items) {
+            if (item.id) {
+              batch.update(db.collection("products").doc(item.id), {
+                stock: admin.firestore.FieldValue.increment(
+                  -Number(item.quantity || 0),
+                ),
+              });
+            }
+          }
+        }
+
+        await batch.commit();
+        console.log(`Order ${orderId} marked as paid, stock decremented.`);
         break;
       }
 
