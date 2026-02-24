@@ -74,7 +74,8 @@ export default function Customize() {
       return setError("Please enter the desired completion duration.");
     if (!details.trim())
       return setError("Please describe your customization request.");
-    if (!captchaToken) return setError("Please complete the reCAPTCHA verification.");
+    if (!captchaToken)
+      return setError("Please complete the reCAPTCHA verification.");
 
     setLoading(true);
 
@@ -154,6 +155,7 @@ export default function Customize() {
             className="w-full p-2 border rounded-lg text-sm bg-white"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
+            required
           >
             <option value="">Select a category</option>
             {CATEGORIES.map((c) => (
@@ -174,6 +176,7 @@ export default function Customize() {
             accept="image/*"
             className="w-full p-2 border rounded-lg text-sm"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
+            required
           />
         </div>
 
@@ -187,6 +190,7 @@ export default function Customize() {
               className="w-full p-2 border rounded-lg text-sm"
               value={height}
               onChange={(e) => setHeight(e.target.value)}
+              required
             />
           </div>
           <div>
@@ -197,6 +201,7 @@ export default function Customize() {
               className="w-full p-2 border rounded-lg text-sm"
               value={width}
               onChange={(e) => setWidth(e.target.value)}
+              required
             />
           </div>
           <div>
@@ -207,6 +212,7 @@ export default function Customize() {
               className="w-full p-2 border rounded-lg text-sm"
               value={length}
               onChange={(e) => setLength(e.target.value)}
+              required
             />
           </div>
         </div>
@@ -235,6 +241,7 @@ export default function Customize() {
               className="w-full p-2 border rounded-lg text-sm"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              required
             />
           </div>
         </div>
@@ -250,6 +257,7 @@ export default function Customize() {
             className="w-full p-2 border rounded-lg text-sm"
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
+            required
           />
         </div>
 
@@ -264,6 +272,7 @@ export default function Customize() {
             className="w-full p-2 border rounded-lg text-sm"
             value={details}
             onChange={(e) => setDetails(e.target.value)}
+            required
           />
         </div>
 

@@ -234,12 +234,14 @@ export default function ProductDetail() {
           {show360 && has360ForColor ? (
             <Viewer360 frames={frames360} alt={`${product.name} 360`} />
           ) : (
-            <img
-              src={mainImage}
-              alt={product.name}
-              loading="lazy"
-              className="w-full h-[420px] object-cover shadow"
-            />
+            <div className="aspect-[4/3] w-full bg-gray-100 overflow-hidden rounded-xl">
+              <img
+                src={mainImage}
+                alt={product.name}
+                loading="lazy"
+                className="w-full h-full object-contain"
+              />
+            </div>
           )}
 
           {/* Selected option chips */}
