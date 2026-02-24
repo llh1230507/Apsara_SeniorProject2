@@ -67,6 +67,51 @@ const COUNTRIES = [
   "Peru",
 ];
 
+const COUNTRY_REGION = {
+  // Asia
+  Thailand: "asia", Cambodia: "asia", Laos: "asia", Myanmar: "asia",
+  Vietnam: "asia", Malaysia: "asia", Singapore: "asia", Indonesia: "asia",
+  Philippines: "asia", Brunei: "asia", China: "asia", Japan: "asia",
+  "South Korea": "asia", India: "asia", Bangladesh: "asia", Nepal: "asia",
+  "Sri Lanka": "asia", Pakistan: "asia",
+  // Oceania
+  Australia: "oceania", "New Zealand": "oceania",
+  // Europe
+  "United Kingdom": "europe", Germany: "europe", France: "europe",
+  Italy: "europe", Spain: "europe", Netherlands: "europe", Belgium: "europe",
+  Sweden: "europe", Norway: "europe", Denmark: "europe", Finland: "europe",
+  Switzerland: "europe", Austria: "europe", Portugal: "europe",
+  Poland: "europe", "Czech Republic": "europe", Russia: "europe",
+  Ukraine: "europe",
+  // Americas
+  "United States": "americas", Canada: "americas", Brazil: "americas",
+  Argentina: "americas", Mexico: "americas", Colombia: "americas",
+  Chile: "americas", Peru: "americas",
+  // Middle East
+  Turkey: "middleEast", "Saudi Arabia": "middleEast",
+  "United Arab Emirates": "middleEast", Qatar: "middleEast",
+  Kuwait: "middleEast", Israel: "middleEast",
+  // Africa
+  Egypt: "africa", "South Africa": "africa", Nigeria: "africa", Kenya: "africa",
+};
+
+// Shipping cost in USD by region and speed
+const SHIPPING_RATES = {
+  asia:       { standard: 8,  express: 20 },
+  oceania:    { standard: 18, express: 45 },
+  middleEast: { standard: 15, express: 38 },
+  africa:     { standard: 20, express: 50 },
+  europe:     { standard: 22, express: 55 },
+  americas:   { standard: 25, express: 60 },
+};
+
+const CARRIERS = ["DHL", "UPS", "FedEx"];
+
+const SPEEDS = [
+  { key: "standard", label: "Standard", desc: "7–14 business days" },
+  { key: "express",  label: "Express",  desc: "2–5 business days"  },
+];
+
 export default function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -75,6 +120,8 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("stripe");
+  const [carrier, setCarrier] = useState("DHL");
+  const [speed, setSpeed] = useState("standard");
 
   if (!user) {
     openAuth({ mode: "login", redirect: "/checkout" });
@@ -84,13 +131,6 @@ export default function Checkout() {
   if (!cartItems || cartItems.length === 0) {
     return <Navigate to="/products" replace />;
   }
-
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
-    0,
-  );
-  const shipping = 0;
-  const total = subtotal + shipping;
 
   const [form, setForm] = useState({
     firstName: "",
@@ -104,6 +144,14 @@ export default function Checkout() {
     country: "Thailand",
     postalCode: "",
   });
+
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+    0,
+  );
+  const region = COUNTRY_REGION[form.country] || "asia";
+  const shipping = SHIPPING_RATES[region][speed];
+  const total = subtotal + shipping;
 
   const onChange = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -121,6 +169,10 @@ export default function Checkout() {
           createdAt: serverTimestamp(),
           status: "pending",
           subtotal,
+          shipping,
+          total,
+          shippingCarrier: carrier,
+          shippingSpeed: speed,
           paymentMethod: "cod",
           customer: {
             fullName: `${form.firstName} ${form.lastName}`.trim(),
@@ -169,6 +221,9 @@ export default function Checkout() {
         const result = await createCheckoutSession({
           cartItems,
           customerInfo: form,
+          shipping,
+          shippingCarrier: carrier,
+          shippingSpeed: speed,
         });
         window.location.href = result.data.url;
       }
@@ -294,6 +349,56 @@ export default function Checkout() {
             </div>
           </div>
 
+          {/* Shipping Options */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Shipping</h2>
+
+            {/* Carrier */}
+            <p className="text-sm font-medium text-gray-700 mb-2">Carrier</p>
+            <div className="flex gap-3 flex-wrap mb-5">
+              {CARRIERS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCarrier(c)}
+                  className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition ${
+                    carrier === c
+                      ? "border-red-600 bg-red-50 text-red-700"
+                      : "border-gray-200 text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            {/* Speed */}
+            <p className="text-sm font-medium text-gray-700 mb-2">Delivery Speed</p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {SPEEDS.map((s) => {
+                const rate = SHIPPING_RATES[region][s.key];
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setSpeed(s.key)}
+                    className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 text-left transition ${
+                      speed === s.key
+                        ? "border-red-600 bg-red-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{s.label}</p>
+                      <p className="text-xs text-gray-500">{s.desc}</p>
+                    </div>
+                    <span className="font-semibold text-sm">${rate.toFixed(2)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Payment Method */}
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
@@ -355,13 +460,11 @@ export default function Checkout() {
 
             {paymentMethod === "stripe" && (
               <p className="mt-3 text-sm text-gray-500">
-                You will be redirected to Stripe's secure checkout to enter
-                your card details.
+                
               </p>
             )}
             {paymentMethod === "cod" && (
               <p className="mt-3 text-sm text-gray-500">
-                Your order will be placed and payment collected upon delivery.
               </p>
             )}
           </div>
@@ -407,10 +510,13 @@ export default function Checkout() {
               <span className="font-medium">${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Shipping</span>
-              <span className="font-medium">
-                {shipping === 0 ? "Free" : `$${shipping.toFixed(2)}`}
+              <span className="text-gray-600">
+                Shipping
+                <span className="ml-1 text-xs text-gray-400">
+                  ({carrier} · {speed === "standard" ? "Standard" : "Express"})
+                </span>
               </span>
+              <span className="font-medium">${shipping.toFixed(2)}</span>
             </div>
           </div>
 
