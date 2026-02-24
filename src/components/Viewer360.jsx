@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 export default function Viewer360({ frames = [], alt = "360 view" }) {
   const [index, setIndex] = useState(0);
+  const [loaded, setLoaded] = useState(0);
   const dragging = useRef(false);
   const lastX = useRef(0);
 
@@ -10,7 +11,19 @@ export default function Viewer360({ frames = [], alt = "360 view" }) {
 
   useEffect(() => {
     setIndex(0);
-  }, [total]);
+    setLoaded(0);
+    if (total === 0) return;
+
+    let count = 0;
+    frames.forEach((src) => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        count += 1;
+        setLoaded(count);
+      };
+      img.src = src;
+    });
+  }, [frames, total]);
 
   const clampIndex = (i) => {
     if (total === 0) return 0;
@@ -61,30 +74,50 @@ export default function Viewer360({ frames = [], alt = "360 view" }) {
     );
   }
 
+  const isReady = loaded >= total;
+  const progress = Math.round((loaded / total) * 100);
+
   return (
     <div
-      className="relative w-full h-[420px] rounded-xl overflow-hidden shadow select-none"
+      className="relative w-full aspect-[4/3] rounded-xl overflow-hidden shadow select-none bg-gray-100"
       role="application"
       tabIndex={0}
       onKeyDown={onKeyDown}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
+      onMouseDown={isReady ? onMouseDown : undefined}
+      onMouseMove={isReady ? onMouseMove : undefined}
       onMouseUp={stop}
       onMouseLeave={stop}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
+      onTouchStart={isReady ? onTouchStart : undefined}
+      onTouchMove={isReady ? onTouchMove : undefined}
       onTouchEnd={stop}
     >
+      {/* Loading overlay */}
+      {!isReady && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-gray-100">
+          <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-red-700 transition-all duration-200 rounded-full"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-sm text-gray-500">
+            Loading 360° view… {progress}%
+          </p>
+        </div>
+      )}
+
       <img
         src={frames[index]}
         alt={alt}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
         draggable={false}
       />
 
-      <div className="absolute bottom-3 left-3 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
-        Drag to rotate • {index + 1}/{total}
-      </div>
+      {isReady && (
+        <div className="absolute bottom-3 left-3 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
+          Drag to rotate • {index + 1}/{total}
+        </div>
+      )}
     </div>
   );
 }

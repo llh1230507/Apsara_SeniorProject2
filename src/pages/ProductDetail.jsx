@@ -234,7 +234,7 @@ export default function ProductDetail() {
           {show360 && has360ForColor ? (
             <Viewer360 frames={frames360} alt={`${product.name} 360`} />
           ) : (
-            <div className="aspect-[4/3] w-full bg-gray-100 overflow-hidden rounded-xl">
+            <div className="aspect-[4/3] w-full bg-gray-100 overflow-hidden ">
               <img
                 src={mainImage}
                 alt={product.name}
