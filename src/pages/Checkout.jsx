@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigate, useNavigate, NavLink } from "react-router-dom";
 import { httpsCallable } from "firebase/functions";
-import { addDoc, collection, serverTimestamp, writeBatch, doc, increment } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, writeBatch, doc, increment, getDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthModal } from "../context/AuthModalContext";
@@ -122,6 +122,45 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("stripe");
   const [carrier, setCarrier] = useState("DHL");
   const [speed, setSpeed] = useState("standard");
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    houseNumber: "",
+    street: "",
+    city: "",
+    province: "",
+    country: "Thailand",
+    postalCode: "",
+  });
+
+  // Pre-fill form from saved profile
+  useEffect(() => {
+    if (!user) return;
+    const fetchProfile = async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        setForm((prev) => ({
+          ...prev,
+          firstName:   d.firstName   || "",
+          lastName:    d.lastName    || "",
+          email:       d.email       || user.email || "",
+          phone:       d.phone       || "",
+          houseNumber: d.houseNumber || "",
+          street:      d.street      || "",
+          city:        d.city        || "",
+          province:    d.province    || "",
+          country:     d.country     || "Thailand",
+          postalCode:  d.postalCode  || "",
+        }));
+      } else {
+        setForm((prev) => ({ ...prev, email: user.email || "" }));
+      }
+    };
+    fetchProfile();
+  }, [user]);
 
   if (!user) {
     openAuth({ mode: "login", redirect: "/checkout" });
@@ -131,19 +170,6 @@ export default function Checkout() {
   if (!cartItems || cartItems.length === 0) {
     return <Navigate to="/products" replace />;
   }
-
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: user?.email || "",
-    phone: "",
-    houseNumber: "",
-    street: "",
-    city: "",
-    province: "",
-    country: "Thailand",
-    postalCode: "",
-  });
 
   const subtotal = cartItems.reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
@@ -327,6 +353,13 @@ export default function Checkout() {
                 onChange={onChange("province")}
                 required
               />
+              <input
+                className="border rounded-lg px-4 py-3 sm:col-span-2"
+                placeholder="Postal Code"
+                value={form.postalCode}
+                onChange={onChange("postalCode")}
+                required
+              />
               <select
                 className="border rounded-lg px-4 py-3 bg-white sm:col-span-2"
                 value={form.country}
@@ -339,13 +372,6 @@ export default function Checkout() {
                   </option>
                 ))}
               </select>
-              <input
-                className="border rounded-lg px-4 py-3 sm:col-span-2"
-                placeholder="Postal Code"
-                value={form.postalCode}
-                onChange={onChange("postalCode")}
-                required
-              />
             </div>
           </div>
 
@@ -431,7 +457,7 @@ export default function Checkout() {
                 )}
               </button>
 
-              {/* Pay on Arrival */}
+              {/* Cash on Delievery */}
               <button
                 type="button"
                 onClick={() => setPaymentMethod("cod")}
@@ -447,7 +473,7 @@ export default function Checkout() {
                   }`}
                 />
                 <div>
-                  <p className="font-semibold text-sm">Pay on Arrival</p>
+                  <p className="font-semibold text-sm">Cash on Delievery</p>
                   <p className="text-xs text-gray-500">
                     Pay with cash upon delivery
                   </p>

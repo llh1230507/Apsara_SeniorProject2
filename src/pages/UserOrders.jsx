@@ -179,8 +179,7 @@ export default function UserOrders() {
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
                       <p className="text-sm text-gray-500">
-                        {item.category} • {item.selectedColor} •{" "}
-                        {item.selectedSize} • {item.selectedMaterial}
+                        {item.category} • {item.selectedColor} •{" "} {item.selectedMaterial}
                       </p>
                       <p className="text-sm text-gray-700 mt-1">
                         {item.quantity} × ${formatMoney(item.price)}

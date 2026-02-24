@@ -22,7 +22,7 @@ export default function Customize() {
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [duration, setDuration] = useState("");
+  const [completionDate, setCompletionDate] = useState("");
 
   const [details, setDetails] = useState("");
   const [file, setFile] = useState(null);
@@ -70,8 +70,8 @@ export default function Customize() {
       return setError("Please enter a valid email.");
     if (!phone.trim()) return setError("Please enter your phone number.");
     if (!file) return setError("Please upload a reference image.");
-    if (!duration.trim())
-      return setError("Please enter the desired completion duration.");
+    if (!completionDate)
+      return setError("Please select your desired completion date.");
     if (!details.trim())
       return setError("Please describe your customization request.");
     if (!captchaToken)
@@ -97,7 +97,7 @@ export default function Customize() {
         },
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
-        duration: duration.trim(),
+        desiredCompletionDate: completionDate,
         details: details.trim(),
         imageUrl,
         status: "pending",
@@ -114,7 +114,7 @@ export default function Customize() {
       setWidth("");
       setLength("");
       setPhone("");
-      setDuration("");
+      setCompletionDate("");
       setDetails("");
       setFile(null);
       setCaptchaToken(null);
@@ -246,17 +246,17 @@ export default function Customize() {
           </div>
         </div>
 
-        {/* Completion Duration */}
+        {/* Desired Completion Date */}
         <div>
           <label className="block text-sm font-semibold mb-1">
-            Desired Completion Time *
+            Desired Completion Date *
           </label>
           <input
-            type="text"
-            placeholder="Duration"
+            type="date"
             className="w-full p-2 border rounded-lg text-sm"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
+            value={completionDate}
+            min={new Date().toISOString().split("T")[0]}
+            onChange={(e) => setCompletionDate(e.target.value)}
             required
           />
         </div>

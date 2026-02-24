@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -44,6 +44,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -93,18 +94,48 @@ export default function Orders() {
     return <p className="p-6 text-gray-500">Loading orders...</p>;
   }
 
+  const filtered = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((o) => {
+      const itemNames = (o.items || [])
+        .map((i) => (i.name || "").toLowerCase())
+        .join(" ");
+      return (
+        o.id.toLowerCase().includes(q) ||
+        (o.customer?.fullName || "").toLowerCase().includes(q) ||
+        (o.customer?.email || "").toLowerCase().includes(q) ||
+        (o.status || "pending").toLowerCase().includes(q) ||
+        itemNames.includes(q)
+      );
+    });
+  })();
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold">Orders</h1>
         <p className="text-sm text-gray-500">
-          {orders.length} order{orders.length !== 1 ? "s" : ""}
+          {filtered.length}
+          {filtered.length !== orders.length ? ` / ${orders.length}` : ""} order
+          {orders.length !== 1 ? "s" : ""}
         </p>
       </div>
 
-      {orders.length === 0 ? (
+      {/* Search */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search by order ID, customer name, email, status, item..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="bg-white rounded shadow p-10 text-center text-gray-500">
-          No orders found.
+          {search ? "No orders match your search." : "No orders found."}
         </div>
       ) : (
         <div className="bg-white rounded shadow overflow-x-auto">
@@ -123,7 +154,7 @@ export default function Orders() {
             </thead>
 
             <tbody>
-              {orders.map((order) => (
+              {filtered.map((order) => (
                 <>
                   <tr key={order.id} className="border-t hover:bg-gray-50">
                     <td className="p-3 font-mono text-xs text-gray-500">
@@ -150,7 +181,7 @@ export default function Orders() {
                     <td className="p-3">
                       {order.paymentMethod === "cod" ? (
                         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                          Pay on Arrival
+                          Card on Delievery
                         </span>
                       ) : (
                         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
@@ -185,7 +216,8 @@ export default function Orders() {
                       >
                         {expanded === order.id ? "Hide" : "Details"}
                       </button>
-                      {(order.status === "completed" || order.status === "cancelled") && (
+                      {(order.status === "completed" ||
+                        order.status === "cancelled") && (
                         <button
                           onClick={() => handleDelete(order.id)}
                           className="text-xs text-red-500 hover:underline"
@@ -209,12 +241,25 @@ export default function Orders() {
                               Shipping Address
                             </p>
                             <p className="text-gray-600 text-sm">
-                              {[order.customer?.houseNumber, order.customer?.street].filter(Boolean).join(" ")}
-                              {order.customer?.houseNumber || order.customer?.street ? <br /> : null}
-                              {order.customer?.city}{order.customer?.province ? `, ${order.customer.province}` : ""}
+                              {[
+                                order.customer?.houseNumber,
+                                order.customer?.street,
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              {order.customer?.houseNumber ||
+                              order.customer?.street ? (
+                                <br />
+                              ) : null}
+                              {order.customer?.city}
+                              {order.customer?.province
+                                ? `, ${order.customer.province}`
+                                : ""}
                               <br />
                               {order.customer?.country}
-                              {order.customer?.postalCode ? ` ${order.customer.postalCode}` : ""}
+                              {order.customer?.postalCode
+                                ? ` ${order.customer.postalCode}`
+                                : ""}
                               <br />
                               {order.customer?.phone}
                             </p>

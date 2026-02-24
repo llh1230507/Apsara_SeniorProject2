@@ -159,7 +159,15 @@ export default function MyCustomizations() {
                   {req.status === "rejected" && (
                     <p className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
                       Unfortunately, we were unable to fulfill this request.
-                      Feel free to submit a new one.
+                      {req.rejectionReason && (
+                        <span className="block mt-1">
+                          <span className="font-medium">Reason:</span>{" "}
+                          {req.rejectionReason}
+                        </span>
+                      )}
+                      <span className="block mt-1 text-red-500">
+                        Feel free to submit a new one.
+                      </span>
                     </p>
                   )}
                 </div>
