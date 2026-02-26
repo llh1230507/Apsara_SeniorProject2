@@ -26,11 +26,7 @@ const CATEGORY_LABELS = [
   { key: "furniture", label: "Furniture" },
 ];
 
-const PRICE_RANGES = [
-  { key: "under100", label: "Under $100", min: 0, max: 100 },
-  { key: "100to500", label: "$100 - $500", min: 100, max: 500 },
-  { key: "500plus", label: "$500+", min: 500, max: Infinity },
-];
+const PRICE_MAX = 5000;
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -41,7 +37,8 @@ export default function Products() {
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [category, setCategory] = useState("all");
-  const [selectedRanges, setSelectedRanges] = useState(new Set());
+  const [priceMin, setPriceMin] = useState(0);
+  const [priceMax, setPriceMax] = useState(PRICE_MAX);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState("featured");
 
@@ -49,7 +46,8 @@ export default function Products() {
   const buildQuery = useCallback(
     (afterDoc = null) => {
       const constraints = [orderBy("__name__"), limit(PAGE_SIZE)];
-      if (category !== "all") constraints.unshift(where("category", "==", category));
+      if (category !== "all")
+        constraints.unshift(where("category", "==", category));
       if (afterDoc) constraints.push(startAfter(afterDoc));
       return query(collection(db, "products"), ...constraints);
     },
@@ -79,7 +77,9 @@ export default function Products() {
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [buildQuery]);
 
   const loadMore = async () => {
@@ -100,18 +100,10 @@ export default function Products() {
     }
   };
 
-  const toggleRange = (key) => {
-    setSelectedRanges((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
   const clearFilters = () => {
     setCategory("all");
-    setSelectedRanges(new Set());
+    setPriceMin(0);
+    setPriceMax(PRICE_MAX);
     setInStockOnly(false);
     setSortBy("featured");
   };
@@ -122,23 +114,24 @@ export default function Products() {
 
     if (inStockOnly) list = list.filter((p) => Number(p.stock ?? 0) > 0);
 
-    if (selectedRanges.size > 0) {
+    if (priceMin > 0 || priceMax < PRICE_MAX) {
       list = list.filter((p) => {
         const price = Number(p.price || 0);
-        for (const r of PRICE_RANGES) {
-          if (!selectedRanges.has(r.key)) continue;
-          if (price >= r.min && price < r.max) return true;
-        }
-        return false;
+        return price >= priceMin && price <= priceMax;
       });
     }
 
-    if (sortBy === "priceAsc") list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-    else if (sortBy === "priceDesc") list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-    else if (sortBy === "nameAsc") list.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    if (sortBy === "priceAsc")
+      list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+    else if (sortBy === "priceDesc")
+      list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+    else if (sortBy === "nameAsc")
+      list.sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || "")),
+      );
 
     return list;
-  }, [products, inStockOnly, selectedRanges, sortBy]);
+  }, [products, inStockOnly, priceMin, priceMax, sortBy]);
 
   // ── Skeleton ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -158,7 +151,10 @@ export default function Products() {
               <div className="h-6 bg-gray-200 rounded w-40 mb-8 animate-pulse" />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="border rounded overflow-hidden animate-pulse">
+                  <div
+                    key={i}
+                    className="border rounded overflow-hidden animate-pulse"
+                  >
                     <div className="aspect-[4/3] bg-gray-200" />
                     <div className="p-4 space-y-2">
                       <div className="h-3 bg-gray-200 rounded w-1/3" />
@@ -180,16 +176,23 @@ export default function Products() {
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-10">
-
           {/* ===== SIDEBAR ===== */}
-          <aside className={`${filtersOpen ? "block" : "hidden"} lg:block lg:sticky lg:top-24 h-fit`}>
+          <aside
+            className={`${filtersOpen ? "block" : "hidden"} lg:block lg:sticky lg:top-24 h-fit`}
+          >
             <div className="border rounded-xl p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs tracking-widest text-gray-500 uppercase">Categories</p>
+                  <p className="text-xs tracking-widest text-gray-500 uppercase">
+                    Categories
+                  </p>
                   <h2 className="text-lg font-semibold mt-1">Filter</h2>
                 </div>
-                <button type="button" onClick={clearFilters} className="text-sm text-gray-600 hover:text-black underline">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm text-gray-600 hover:text-black underline"
+                >
                   Reset
                 </button>
               </div>
@@ -199,7 +202,10 @@ export default function Products() {
                 <p className="text-sm font-semibold text-gray-900">Category</p>
                 <div className="mt-3 space-y-2">
                   {CATEGORY_LABELS.map((c) => (
-                    <label key={c.key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <label
+                      key={c.key}
+                      className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer"
+                    >
                       <input
                         type="radio"
                         name="category"
@@ -214,27 +220,86 @@ export default function Products() {
                 </div>
               </div>
 
-              {/* Price Range */}
+              {/* Price Range Slider */}
               <div className="mt-8">
-                <p className="text-sm font-semibold text-gray-900">Price Range</p>
-                <div className="mt-3 space-y-2">
-                  {PRICE_RANGES.map((r) => (
-                    <label key={r.key} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedRanges.has(r.key)}
-                        onChange={() => toggleRange(r.key)}
-                        className="accent-red-700"
-                      />
-                      {r.label}
-                    </label>
-                  ))}
+                <p className="text-sm font-semibold text-gray-900">
+                  Price Range
+                </p>
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-gray-500 mb-3">
+                    <span>${priceMin}</span>
+                    <span>
+                      {priceMax >= PRICE_MAX
+                        ? `$${PRICE_MAX}+`
+                        : `$${priceMax}`}
+                    </span>
+                  </div>
+                  <div className="relative flex items-center h-5">
+                    {/* Track background */}
+                    <div className="absolute w-full h-1.5 bg-gray-200 rounded-full" />
+                    {/* Active range highlight */}
+                    <div
+                      className="absolute h-1.5 bg-red-600 rounded-full"
+                      style={{
+                        left: `${(priceMin / PRICE_MAX) * 100}%`,
+                        right: `${100 - (priceMax / PRICE_MAX) * 100}%`,
+                      }}
+                    />
+                    {/* Min thumb */}
+                    <input
+                      type="range"
+                      min={0}
+                      max={PRICE_MAX}
+                      step={10}
+                      value={priceMin}
+                      onChange={(e) =>
+                        setPriceMin(
+                          Math.min(Number(e.target.value), priceMax - 10),
+                        )
+                      }
+                      className="absolute w-full h-1.5 appearance-none bg-transparent cursor-pointer
+                        [&::-webkit-slider-thumb]:appearance-none
+                        [&::-webkit-slider-thumb]:h-4
+                        [&::-webkit-slider-thumb]:w-4
+                        [&::-webkit-slider-thumb]:rounded-full
+                        [&::-webkit-slider-thumb]:bg-red-700
+                        [&::-webkit-slider-thumb]:border-2
+                        [&::-webkit-slider-thumb]:border-white
+                        [&::-webkit-slider-thumb]:shadow"
+                      style={{ zIndex: priceMin >= priceMax - 10 ? 5 : 3 }}
+                    />
+                    {/* Max thumb */}
+                    <input
+                      type="range"
+                      min={0}
+                      max={PRICE_MAX}
+                      step={10}
+                      value={priceMax}
+                      onChange={(e) =>
+                        setPriceMax(
+                          Math.max(Number(e.target.value), priceMin + 10),
+                        )
+                      }
+                      className="absolute w-full h-1.5 appearance-none bg-transparent cursor-pointer
+                        [&::-webkit-slider-thumb]:appearance-none
+                        [&::-webkit-slider-thumb]:h-4
+                        [&::-webkit-slider-thumb]:w-4
+                        [&::-webkit-slider-thumb]:rounded-full
+                        [&::-webkit-slider-thumb]:bg-red-700
+                        [&::-webkit-slider-thumb]:border-2
+                        [&::-webkit-slider-thumb]:border-white
+                        [&::-webkit-slider-thumb]:shadow"
+                      style={{ zIndex: 4 }}
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Availability */}
               <div className="mt-8">
-                <p className="text-sm font-semibold text-gray-900">Availability</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  Availability
+                </p>
                 <label className="mt-3 flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input
                     type="checkbox"
@@ -254,7 +319,8 @@ export default function Products() {
               <div>
                 <h1 className="text-2xl font-bold">All Products</h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  Showing {filtered.length} result{filtered.length === 1 ? "" : "s"}
+                  Showing {filtered.length} result
+                  {filtered.length === 1 ? "" : "s"}
                 </p>
               </div>
 
@@ -267,7 +333,9 @@ export default function Products() {
                   {filtersOpen ? "Hide Filters" : "Filters"}
                 </button>
 
-                <label className="text-sm text-gray-600 hidden sm:block">Sort by:</label>
+                <label className="text-sm text-gray-600 hidden sm:block">
+                  Sort by:
+                </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -313,11 +381,19 @@ export default function Products() {
                       <div className="text-xs text-gray-500 capitalize">
                         {p.category || "uncategorized"}
                       </div>
-                      <div className="mt-1 font-semibold text-gray-900">{p.name}</div>
+                      <div className="mt-1 font-semibold text-gray-900">
+                        {p.name}
+                      </div>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-gray-900 font-semibold">${money(p.price)}</span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${Number(p.stock ?? 0) > 0 ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                          {Number(p.stock ?? 0) > 0 ? "In Stock" : "Out of Stock"}
+                        <span className="text-gray-900 font-semibold">
+                          ${money(p.price)}
+                        </span>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${Number(p.stock ?? 0) > 0 ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                        >
+                          {Number(p.stock ?? 0) > 0
+                            ? "In Stock"
+                            : "Out of Stock"}
                         </span>
                       </div>
                     </div>

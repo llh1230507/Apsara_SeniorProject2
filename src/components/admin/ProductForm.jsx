@@ -133,8 +133,18 @@ export default function ProductForm({
     setError("");
 
     if (!name.trim()) return setError("Product name is required.");
-    if (price === "" || Number(price) < 0)
-      return setError("Base price is invalid.");
+    if (price === "" || Number(price) <= 0)
+      return setError("Base price must be greater than 0.");
+    if (stock !== "" && Number(stock) < 0)
+      return setError("Stock cannot be negative.");
+    if (
+      (size.width !== "" && Number(size.width) <= 0) ||
+      (size.length !== "" && Number(size.length) <= 0) ||
+      (size.height !== "" && Number(size.height) <= 0)
+    )
+      return setError("Product dimensions must be greater than 0.");
+    if (Number(materialPrice.standard) < 0 || Number(materialPrice.premium) < 0)
+      return setError("Material prices cannot be negative.");
 
     // ✅ one-size dims are optional, but if you want to require them, uncomment this:
     // const w = Number(size.width || 0);
@@ -274,6 +284,8 @@ export default function ProductForm({
               </label>
               <input
                 type="number"
+                min="0.01"
+                step="0.01"
                 className="w-full border px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
@@ -318,6 +330,8 @@ export default function ProductForm({
               <label className="text-gray-600">Width</label>
               <input
                 type="number"
+                min="0.1"
+                step="0.1"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200"
                 value={size.width}
                 onChange={(e) =>
@@ -331,6 +345,8 @@ export default function ProductForm({
               <label className="text-gray-600">Length</label>
               <input
                 type="number"
+                min="0.1"
+                step="0.1"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200"
                 value={size.length}
                 onChange={(e) =>
@@ -344,6 +360,8 @@ export default function ProductForm({
               <label className="text-gray-600">Height</label>
               <input
                 type="number"
+                min="0.1"
+                step="0.1"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200"
                 value={size.height}
                 onChange={(e) =>
@@ -364,6 +382,8 @@ export default function ProductForm({
               <label className="text-gray-600">Standard add-on</label>
               <input
                 type="number"
+                min="0"
+                step="0.01"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200"
                 value={materialPrice.standard}
                 onChange={(e) =>
@@ -379,6 +399,8 @@ export default function ProductForm({
               <label className="text-gray-600">Premium add-on</label>
               <input
                 type="number"
+                min="0"
+                step="0.01"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-200"
                 value={materialPrice.premium}
                 onChange={(e) =>
