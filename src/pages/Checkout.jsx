@@ -112,6 +112,66 @@ const SPEEDS = [
   { key: "express",  label: "Express",  desc: "2–5 business days"  },
 ];
 
+// Country → { code, symbol }
+const COUNTRY_CURRENCY = {
+  Thailand: { code: "THB", symbol: "฿" },
+  Cambodia: { code: "USD", symbol: "$" },
+  Laos: { code: "LAK", symbol: "₭" },
+  Myanmar: { code: "MMK", symbol: "K" },
+  Vietnam: { code: "VND", symbol: "₫" },
+  Malaysia: { code: "MYR", symbol: "RM" },
+  Singapore: { code: "SGD", symbol: "S$" },
+  Indonesia: { code: "IDR", symbol: "Rp" },
+  Philippines: { code: "PHP", symbol: "₱" },
+  Brunei: { code: "BND", symbol: "B$" },
+  China: { code: "CNY", symbol: "¥" },
+  Japan: { code: "JPY", symbol: "¥" },
+  "South Korea": { code: "KRW", symbol: "₩" },
+  India: { code: "INR", symbol: "₹" },
+  Bangladesh: { code: "BDT", symbol: "৳" },
+  Nepal: { code: "NPR", symbol: "Rs" },
+  "Sri Lanka": { code: "LKR", symbol: "Rs" },
+  Pakistan: { code: "PKR", symbol: "Rs" },
+  Australia: { code: "AUD", symbol: "A$" },
+  "New Zealand": { code: "NZD", symbol: "NZ$" },
+  "United States": { code: "USD", symbol: "$" },
+  Canada: { code: "CAD", symbol: "C$" },
+  "United Kingdom": { code: "GBP", symbol: "£" },
+  Germany: { code: "EUR", symbol: "€" },
+  France: { code: "EUR", symbol: "€" },
+  Italy: { code: "EUR", symbol: "€" },
+  Spain: { code: "EUR", symbol: "€" },
+  Netherlands: { code: "EUR", symbol: "€" },
+  Belgium: { code: "EUR", symbol: "€" },
+  Sweden: { code: "SEK", symbol: "kr" },
+  Norway: { code: "NOK", symbol: "kr" },
+  Denmark: { code: "DKK", symbol: "kr" },
+  Finland: { code: "EUR", symbol: "€" },
+  Switzerland: { code: "CHF", symbol: "Fr" },
+  Austria: { code: "EUR", symbol: "€" },
+  Portugal: { code: "EUR", symbol: "€" },
+  Poland: { code: "PLN", symbol: "zł" },
+  "Czech Republic": { code: "CZK", symbol: "Kč" },
+  Russia: { code: "RUB", symbol: "₽" },
+  Ukraine: { code: "UAH", symbol: "₴" },
+  Turkey: { code: "TRY", symbol: "₺" },
+  "Saudi Arabia": { code: "SAR", symbol: "SR" },
+  "United Arab Emirates": { code: "AED", symbol: "د.إ" },
+  Qatar: { code: "QAR", symbol: "QR" },
+  Kuwait: { code: "KWD", symbol: "KD" },
+  Israel: { code: "ILS", symbol: "₪" },
+  Egypt: { code: "EGP", symbol: "£" },
+  "South Africa": { code: "ZAR", symbol: "R" },
+  Nigeria: { code: "NGN", symbol: "₦" },
+  Kenya: { code: "KES", symbol: "KSh" },
+  Brazil: { code: "BRL", symbol: "R$" },
+  Argentina: { code: "ARS", symbol: "$" },
+  Mexico: { code: "MXN", symbol: "$" },
+  Colombia: { code: "COP", symbol: "$" },
+  Chile: { code: "CLP", symbol: "$" },
+  Peru: { code: "PEN", symbol: "S/" },
+};
+
 export default function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -122,6 +182,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("stripe");
   const [carrier, setCarrier] = useState("DHL");
   const [speed, setSpeed] = useState("standard");
+  const [exchangeRates, setExchangeRates] = useState({});
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -162,6 +223,16 @@ export default function Checkout() {
     fetchProfile();
   }, [user]);
 
+  // Fetch live exchange rates (base USD)
+  useEffect(() => {
+    fetch("https://open.er-api.com/v6/latest/USD")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.rates) setExchangeRates(data.rates);
+      })
+      .catch(() => {});
+  }, []);
+
   if (!user) {
     openAuth({ mode: "login", redirect: "/checkout" });
     return <Navigate to="/" replace />;
@@ -179,6 +250,16 @@ export default function Checkout() {
   const shipping = SHIPPING_RATES[region][speed];
   const total = subtotal + shipping;
 
+  // Currency display helpers
+  const currencyInfo = COUNTRY_CURRENCY[form.country] || { code: "USD", symbol: "$" };
+  const fxRate = exchangeRates[currencyInfo.code] || 1;
+  const fmt = (usd) => {
+    const converted = usd * fxRate;
+    const decimals = ["JPY", "KRW", "VND", "IDR", "CLP", "MMK", "LAK"].includes(currencyInfo.code) ? 0 : 2;
+    return `${currencyInfo.symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+  };
+  const isUSD = currencyInfo.code === "USD";
+
   const onChange = (key) => (e) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
@@ -186,6 +267,12 @@ export default function Checkout() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (!/^\+?[\d\s\-()\[\]]{7,20}$/.test(form.phone.trim())) {
+      setError("Please enter a valid phone number (digits only, 7–20 characters).");
+      setLoading(false);
+      return;
+    }
 
     try {
       if (paymentMethod === "cod") {
@@ -314,8 +401,14 @@ export default function Checkout() {
               <input
                 className="border rounded-lg px-4 py-3 sm:col-span-2"
                 placeholder="Phone number"
+                type="tel"
                 value={form.phone}
-                onChange={onChange("phone")}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    phone: e.target.value.replace(/[^\d\s+\-()\[\]]/g, ""),
+                  }))
+                }
                 required
               />
             </div>
@@ -418,7 +511,7 @@ export default function Checkout() {
                       <p className="font-semibold text-sm">{s.label}</p>
                       <p className="text-xs text-gray-500">{s.desc}</p>
                     </div>
-                    <span className="font-semibold text-sm">${rate.toFixed(2)}</span>
+                    <span className="font-semibold text-sm">{fmt(rate)}</span>
                   </button>
                 );
               })}
@@ -519,10 +612,7 @@ export default function Checkout() {
                   <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                 </div>
                 <div className="font-medium">
-                  $
-                  {(
-                    Number(item.price || 0) * Number(item.quantity || 0)
-                  ).toFixed(2)}
+                  {fmt(Number(item.price || 0) * Number(item.quantity || 0))}
                 </div>
               </div>
             ))}
@@ -533,7 +623,7 @@ export default function Checkout() {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">Subtotal</span>
-              <span className="font-medium">${subtotal.toFixed(2)}</span>
+              <span className="font-medium">{fmt(subtotal)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">
@@ -542,14 +632,20 @@ export default function Checkout() {
                   ({carrier} · {speed === "standard" ? "Standard" : "Express"})
                 </span>
               </span>
-              <span className="font-medium">${shipping.toFixed(2)}</span>
+              <span className="font-medium">{fmt(shipping)}</span>
             </div>
           </div>
 
           <div className="flex justify-between text-lg font-bold mt-4">
             <span>Total</span>
-            <span>${total.toFixed(2)}</span>
+            <span>{fmt(total)}</span>
           </div>
+
+          {!isUSD && (
+            <p className="text-xs text-gray-400 mt-1 text-right">
+              Displayed in {currencyInfo.code} · Charged in USD
+            </p>
+          )}
 
           <button
             type="submit"

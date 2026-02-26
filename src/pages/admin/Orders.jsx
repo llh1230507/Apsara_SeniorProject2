@@ -10,23 +10,57 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import emailjs from "@emailjs/browser";
 
 const STATUS_OPTIONS = [
-  "pending",
-  "paid",
-  "processing",
-  "shipped",
-  "completed",
-  "cancelled",
+  { value: "pending",    label: "Pending" },
+  { value: "paid",       label: "Payment Confirmed" },
+  { value: "processing", label: "Processing" },
+  { value: "shipped",    label: "Shipped" },
+  { value: "completed",  label: "Delivered" },
+  { value: "cancelled",  label: "Cancelled" },
 ];
 
 const STATUS_STYLES = {
-  pending: "bg-yellow-100 text-yellow-700",
-  paid: "bg-blue-100 text-blue-700",
+  pending:    "bg-yellow-100 text-yellow-700",
+  paid:       "bg-blue-100 text-blue-700",
   processing: "bg-purple-100 text-purple-700",
-  shipped: "bg-indigo-100 text-indigo-700",
-  completed: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
+  shipped:    "bg-indigo-100 text-indigo-700",
+  completed:  "bg-green-100 text-green-700",
+  cancelled:  "bg-red-100 text-red-700",
+};
+
+const STATUS_EMAIL = {
+  pending: {
+    subject: "We received your order 🛍️",
+    message: (order) =>
+      `Hi ${order.customer?.fullName || "there"},\n\nWe have received your order #${order.id}. We will confirm it shortly.\n\nThank you for shopping with us!`,
+  },
+  paid: {
+    subject: "Payment confirmed ✅",
+    message: (order) =>
+      `Hi ${order.customer?.fullName || "there"},\n\nYour payment for order #${order.id} has been confirmed. We are now preparing your order.\n\nThank you for your purchase!`,
+  },
+  processing: {
+    subject: "Your order is being prepared 📦",
+    message: (order) =>
+      `Hi ${order.customer?.fullName || "there"},\n\nGood news! Your order #${order.id} is currently being prepared and will be shipped soon.\n\nWe will notify you once it is on its way.`,
+  },
+  shipped: {
+    subject: "Your order has been shipped 🚚",
+    message: (order) =>
+      `Hi ${order.customer?.fullName || "there"},\n\nYour order #${order.id} has been shipped via ${order.shippingCarrier || "our carrier"}.\n\nExpected delivery: ${order.shippingSpeed === "express" ? "2–5 business days" : "7–14 business days"}.\n\nThank you for your patience!`,
+  },
+  completed: {
+    subject: "Your order has been delivered 🎉",
+    message: (order) =>
+      `Hi ${order.customer?.fullName || "there"},\n\nYour order #${order.id} has been delivered. We hope you love your purchase!\n\nIf you have any questions or concerns, feel free to contact us.\n\nThank you for shopping with us!`,
+  },
+  cancelled: {
+    subject: "Your order has been cancelled ❌",
+    message: (order) =>
+      `Hi ${order.customer?.fullName || "there"},\n\nYour order #${order.id} has been cancelled.\n\nIf you did not request this or have any questions, please contact our support team.\n\nWe apologize for any inconvenience.`,
+  },
 };
 
 function formatMoney(n) {
@@ -70,9 +104,31 @@ export default function Orders() {
     setUpdating(orderId);
     try {
       await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+      const updatedOrder = orders.find((o) => o.id === orderId);
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)),
       );
+
+      // Send status notification email
+      const emailInfo = STATUS_EMAIL[newStatus];
+      const customerEmail = updatedOrder?.customer?.email;
+      if (emailInfo && customerEmail) {
+        const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+        const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+        const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+        emailjs
+          .send(
+            SERVICE_ID,
+            TEMPLATE_ID,
+            {
+              to_email: customerEmail,
+              subject: emailInfo.subject,
+              message: emailInfo.message(updatedOrder),
+            },
+            PUBLIC_KEY,
+          )
+          .catch((err) => console.error("Email failed:", err));
+      }
     } catch (err) {
       console.error("Failed to update status:", err);
     } finally {
@@ -201,8 +257,8 @@ export default function Orders() {
                         } ${updating === order.id ? "opacity-50" : ""}`}
                       >
                         {STATUS_OPTIONS.map((s) => (
-                          <option key={s} value={s}>
-                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                          <option key={s.value} value={s.value}>
+                            {s.label}
                           </option>
                         ))}
                       </select>

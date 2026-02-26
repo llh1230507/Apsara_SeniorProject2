@@ -32,7 +32,7 @@ function Contact() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Email</p>
-                    <p className="text-sm text-gray-500">apsara51@gmail.com</p>
+                    <p className="text-sm text-gray-500">apsarapenhchet51@gmail.com</p>
                   </div>
                 </div>
 

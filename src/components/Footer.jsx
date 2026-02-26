@@ -20,8 +20,7 @@ function Footer() {
             </NavLink>
           </h2>
           <p className="text-sm">
-            Handcrafted Khmer art preserving culture through timeless
-            sculptures.
+            Handcrafted art preserving tradition through timeless sculptures.
           </p>
         </div>
         {/* Links */}

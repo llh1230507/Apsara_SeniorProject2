@@ -67,8 +67,15 @@ export default function Customize() {
     if (!category) return setError("Please select a product category.");
     if (!email.trim()) return setError("Please enter your email.");
     if (!isValidEmail(email.trim()))
-      return setError("Please enter a valid email.");
+      return setError("Please enter a valid email address.");
     if (!phone.trim()) return setError("Please enter your phone number.");
+    if (!/^\+?[\d\s\-()\[\]]{7,20}$/.test(phone.trim()))
+      return setError("Please enter a valid phone number (digits only, 7–20 characters).");
+    const h = Number(height);
+    const w = Number(width);
+    const l = Number(length);
+    if (!height || !width || !length || h <= 0 || w <= 0 || l <= 0)
+      return setError("Height, width, and length must be greater than 0.");
     if (!file) return setError("Please upload a reference image.");
     if (!completionDate)
       return setError("Please select your desired completion date.");
@@ -187,6 +194,7 @@ export default function Customize() {
             <input
               type="number"
               placeholder="cm"
+              min="1"
               className="w-full p-2 border rounded-lg text-sm"
               value={height}
               onChange={(e) => setHeight(e.target.value)}
@@ -198,6 +206,7 @@ export default function Customize() {
             <input
               type="number"
               placeholder="cm"
+              min="1"
               className="w-full p-2 border rounded-lg text-sm"
               value={width}
               onChange={(e) => setWidth(e.target.value)}
@@ -209,6 +218,7 @@ export default function Customize() {
             <input
               type="number"
               placeholder="cm"
+              min="1"
               className="w-full p-2 border rounded-lg text-sm"
               value={length}
               onChange={(e) => setLength(e.target.value)}
@@ -236,11 +246,13 @@ export default function Customize() {
               Phone Number *
             </label>
             <input
-              type="text"
+              type="tel"
               placeholder="Phone number"
               className="w-full p-2 border rounded-lg text-sm"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) =>
+                setPhone(e.target.value.replace(/[^\d\s+\-()\[\]]/g, ""))
+              }
               required
             />
           </div>

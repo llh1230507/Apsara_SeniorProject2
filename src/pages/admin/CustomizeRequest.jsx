@@ -7,7 +7,6 @@ import {
   query,
   updateDoc,
   doc,
-  deleteDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import emailjs from "@emailjs/browser";
@@ -25,6 +24,23 @@ const REJECTION_REASONS = [
   "The design complexity is beyond what we are currently able to execute.",
 ];
 
+// Post-acceptance pipeline statuses
+const PROGRESS_OPTIONS = [
+  { value: "accepted",    label: "Accepted" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "shipping",    label: "Shipping" },
+  { value: "completed",   label: "Completed" },
+];
+
+const PROGRESS_STYLES = {
+  pending:     "bg-yellow-100 text-yellow-700",
+  accepted:    "bg-blue-100 text-blue-700",
+  in_progress: "bg-purple-100 text-purple-700",
+  shipping:    "bg-indigo-100 text-indigo-700",
+  completed:   "bg-green-100 text-green-700",
+  rejected:    "bg-red-100 text-red-700",
+};
+
 const fmtNum = (n) => Number(n || 0);
 
 const EMPTY_REJECT_MODAL = {
@@ -40,6 +56,7 @@ export default function CustomizeRequest() {
   const [busy, setBusy] = useState({});
   const [rejectModal, setRejectModal] = useState(EMPTY_REJECT_MODAL);
   const [search, setSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const sendDecisionEmail = async ({
     to,
@@ -53,26 +70,40 @@ export default function CustomizeRequest() {
 
     const productLabel =
       CATEGORY_LABELS[category] || category || "your product";
-
-    const subject =
-      status === "accepted"
-        ? "Your customization request is accepted ✅"
-        : "Update on your customization request";
-
     const reasonLine = rejectionReason ? `\n\nReason: ${rejectionReason}` : "";
 
-    const message =
-      status === "accepted"
-        ? `Thank you for your request. Your request is accepted. We will contact you soon. Thank you.\n\nProduct Category: ${productLabel}`
-        : `Thank you for your request. Unfortunately, we cannot fulfill your request at this time.${reasonLine}\n\nWe hope we can help you in the future. Thank you for your understanding.\n\nProduct Category: ${productLabel}`;
-
-    const templateParams = {
-      to_email: to,
-      subject,
-      message,
+    const EMAIL_CONTENT = {
+      accepted: {
+        subject: "Your customization request is accepted ✅",
+        message: `Thank you for your request. Your request has been accepted. We will contact you soon.\n\nProduct Category: ${productLabel}`,
+      },
+      in_progress: {
+        subject: "Your customization is being crafted 🔨",
+        message: `Great news! We have started working on your customization request.\n\nProduct Category: ${productLabel}\n\nWe will notify you once it is ready to ship.`,
+      },
+      shipping: {
+        subject: "Your customization request has been shipped 🚚",
+        message: `Your custom ${productLabel} is on its way! It has been packed and shipped.\n\nYou will receive it shortly. Thank you for your patience!`,
+      },
+      completed: {
+        subject: "Your customization request is complete 🎉",
+        message: `Your custom ${productLabel} has been delivered and marked as complete.\n\nWe hope you love it! Feel free to reach out if you have any questions.\n\nThank you for choosing us!`,
+      },
+      rejected: {
+        subject: "Update on your customization request",
+        message: `Thank you for your request. Unfortunately, we cannot fulfill your request at this time.${reasonLine}\n\nWe hope we can help you in the future. Thank you for your understanding.\n\nProduct Category: ${productLabel}`,
+      },
     };
 
-    return emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+    const content = EMAIL_CONTENT[status];
+    if (!content) return;
+
+    return emailjs.send(
+      SERVICE_ID,
+      TEMPLATE_ID,
+      { to_email: to, subject: content.subject, message: content.message },
+      PUBLIC_KEY,
+    );
   };
 
   useEffect(() => {
@@ -97,22 +128,43 @@ export default function CustomizeRequest() {
     return () => unsub();
   }, []);
 
-  const handleDelete = async (id) => {
-    const ok = window.confirm("Delete this customization request?");
-    if (!ok) return;
-
+  const handleArchive = async (id) => {
     setBusy((b) => ({ ...b, [id]: true }));
     try {
-      await deleteDoc(doc(db, "customizationRequests", id));
+      await updateDoc(doc(db, "customizationRequests", id), { archived: true });
     } catch (err) {
       console.error(err);
-      alert("Failed to delete request");
+      alert("Failed to archive request");
     } finally {
       setBusy((b) => {
         const next = { ...b };
         delete next[id];
         return next;
       });
+    }
+  };
+
+  const handleUnarchive = async (id) => {
+    setBusy((b) => ({ ...b, [id]: true }));
+    try {
+      await updateDoc(doc(db, "customizationRequests", id), { archived: false });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to unarchive request");
+    } finally {
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const handleDeliveryDateChange = async (id, dateStr) => {
+    try {
+      await updateDoc(doc(db, "customizationRequests", id), { estimatedDelivery: dateStr });
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -150,28 +202,30 @@ export default function CustomizeRequest() {
     }
   };
 
-  const statusBadge = (status = "pending") => {
-    const styles = {
-      pending: "bg-blue-100 text-blue-700",
-      accepted: "bg-green-100 text-green-700",
-      rejected: "bg-red-100 text-red-700",
-    };
-
-    return (
-      <span
-        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-          styles[status] || styles.pending
-        }`}
-      >
-        {status}
-      </span>
-    );
+  const STATUS_DISPLAY = {
+    pending:     "Pending",
+    accepted:    "Accepted",
+    in_progress: "In Progress",
+    shipping:    "Shipping",
+    completed:   "Completed",
+    rejected:    "Rejected",
   };
 
+  const statusBadge = (status = "pending") => (
+    <span
+      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+        PROGRESS_STYLES[status] || PROGRESS_STYLES.pending
+      }`}
+    >
+      {STATUS_DISPLAY[status] || status}
+    </span>
+  );
+
   const filtered = useMemo(() => {
+    const pool = requests.filter((r) => !!r.archived === showArchived);
     const q = search.trim().toLowerCase();
-    if (!q) return requests;
-    return requests.filter((r) => {
+    if (!q) return pool;
+    return pool.filter((r) => {
       const categoryLabel = (CATEGORY_LABELS[r.category] || r.category || "").toLowerCase();
       return (
         categoryLabel.includes(q) ||
@@ -182,9 +236,10 @@ export default function CustomizeRequest() {
         (r.details || "").toLowerCase().includes(q)
       );
     });
-  }, [requests, search]);
+  }, [requests, search, showArchived]);
 
-  const total = useMemo(() => requests.length, [requests]);
+  const activeCount = useMemo(() => requests.filter((r) => !r.archived).length, [requests]);
+  const archivedCount = useMemo(() => requests.filter((r) => !!r.archived).length, [requests]);
 
   return (
     <div className="bg-white rounded-2xl shadow p-6">
@@ -195,9 +250,21 @@ export default function CustomizeRequest() {
             Review and accept/reject customer customization requests.
           </p>
         </div>
-        <span className="text-sm text-gray-500">
-          {filtered.length}{filtered.length !== total ? ` / ${total}` : ""} request{total !== 1 ? "s" : ""}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">
+            {filtered.length} {showArchived ? "archived" : "active"} request{filtered.length !== 1 ? "s" : ""}
+          </span>
+          <button
+            onClick={() => { setShowArchived((v) => !v); setSearch(""); }}
+            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition ${
+              showArchived
+                ? "bg-gray-800 text-white border-gray-800"
+                : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+            }`}
+          >
+            {showArchived ? "View Active" : `Archived (${archivedCount})`}
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -233,7 +300,12 @@ export default function CustomizeRequest() {
 
             <tbody>
               {filtered.map((r) => {
-                const pending = (r.status || "pending") === "pending";
+                const status = r.status || "pending";
+                const PIPELINE = ["accepted", "in_progress", "shipping", "completed"];
+                const inPipeline = PIPELINE.includes(status);
+                const canAccept = !inPipeline && status !== "accepted";
+                const canReject = !inPipeline && status !== "rejected";
+                const showProgress = ["accepted", "in_progress", "shipping"].includes(status);
                 const isBusy = !!busy[r.id];
                 const s = r.size || {};
 
@@ -311,25 +383,42 @@ export default function CustomizeRequest() {
 
                     <td className="py-4 align-top">
                       <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleDelete(r.id)}
-                          className={`px-3 py-1 rounded font-semibold ${
-                            !isBusy
-                              ? "bg-gray-900 text-white hover:bg-black"
-                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                          }`}
-                        >
-                          {isBusy ? "..." : "Delete"}
-                        </button>
+                        {!showArchived && (
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleArchive(r.id)}
+                            className={`px-3 py-1 rounded font-semibold ${
+                              !isBusy
+                                ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {isBusy ? "..." : "Archive"}
+                          </button>
+                        )}
+
+                        {showArchived && (
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleUnarchive(r.id)}
+                            className={`px-3 py-1 rounded font-semibold ${
+                              !isBusy
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {isBusy ? "..." : "Unarchive"}
+                          </button>
+                        )}
 
                         <button
                           type="button"
-                          disabled={!pending || isBusy}
+                          disabled={!canAccept || isBusy}
                           onClick={() => updateStatus(r, "accepted")}
                           className={`px-3 py-1 rounded font-semibold ${
-                            pending && !isBusy
+                            canAccept && !isBusy
                               ? "bg-green-600 text-white hover:bg-green-700"
                               : "bg-gray-200 text-gray-500 cursor-not-allowed"
                           }`}
@@ -339,7 +428,7 @@ export default function CustomizeRequest() {
 
                         <button
                           type="button"
-                          disabled={!pending || isBusy}
+                          disabled={!canReject || isBusy}
                           onClick={() =>
                             setRejectModal({
                               open: true,
@@ -349,14 +438,46 @@ export default function CustomizeRequest() {
                             })
                           }
                           className={`px-3 py-1 rounded font-semibold ${
-                            pending && !isBusy
+                            canReject && !isBusy
                               ? "bg-red-600 text-white hover:bg-red-700"
                               : "bg-gray-200 text-gray-500 cursor-not-allowed"
                           }`}
                         >
                           {isBusy ? "..." : "Reject"}
                         </button>
+
+                        {showProgress && (
+                          <select
+                            value={status}
+                            disabled={isBusy}
+                            onChange={(e) => updateStatus(r, e.target.value)}
+                            className={`px-2 py-1 rounded text-xs font-semibold border-0 cursor-pointer ${
+                              PROGRESS_STYLES[status] || PROGRESS_STYLES.accepted
+                            } ${isBusy ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            {PROGRESS_OPTIONS.map((p) => (
+                              <option key={p.value} value={p.value}>
+                                {p.label}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
+                      {showProgress && (
+                        <div className="mt-2">
+                          <label className="text-xs text-gray-400 block mb-0.5">
+                            Est. delivery
+                          </label>
+                          <input
+                            type="date"
+                            value={r.estimatedDelivery || ""}
+                            onChange={(e) =>
+                              handleDeliveryDateChange(r.id, e.target.value)
+                            }
+                            className="text-xs border rounded px-1.5 py-1 w-36"
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -365,7 +486,11 @@ export default function CustomizeRequest() {
               {!filtered.length && (
                 <tr>
                   <td colSpan={10} className="py-10 text-center text-gray-400">
-                    {search ? "No requests match your search." : "No customization requests yet"}
+                    {search
+                      ? "No requests match your search."
+                      : showArchived
+                        ? "No archived requests."
+                        : "No customization requests yet"}
                   </td>
                 </tr>
               )}

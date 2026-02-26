@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { db } from "../firebase";
+import ContactSupportModal from "../components/ContactSupportModal";
 
 const CATEGORY_LABELS = {
   wood: "Wood Sculptures",
@@ -11,11 +12,65 @@ const CATEGORY_LABELS = {
   furniture: "Furniture",
 };
 
-const STATUS_STYLES = {
-  pending: "bg-yellow-50 border-yellow-200 text-yellow-700",
-  accepted: "bg-green-50 border-green-200 text-green-700",
-  rejected: "bg-red-50 border-red-200 text-red-700",
+const STATUS_LABELS = {
+  pending:     "Under Review",
+  accepted:    "Accepted",
+  in_progress: "In Progress",
+  shipping:    "Shipping",
+  completed:   "Completed",
+  rejected:    "Rejected",
 };
+
+const STATUS_STYLES = {
+  pending:     "bg-yellow-50 border-yellow-200 text-yellow-700",
+  accepted:    "bg-blue-50 border-blue-200 text-blue-700",
+  in_progress: "bg-purple-50 border-purple-200 text-purple-700",
+  shipping:    "bg-indigo-50 border-indigo-200 text-indigo-700",
+  completed:   "bg-green-50 border-green-200 text-green-700",
+  rejected:    "bg-red-50 border-red-200 text-red-700",
+};
+
+// Steps in the progress tracker (happy path)
+const STEPS = [
+  { key: "submitted",   label: "Submitted" },
+  { key: "review",      label: "Under Review" },
+  { key: "accepted",    label: "Accepted" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "shipping",    label: "Shipping" },
+  { key: "completed",   label: "Completed" },
+];
+
+const STEP_ORDER = ["submitted", "review", "accepted", "in_progress", "shipping", "completed"];
+
+const STATUS_TO_STEP = {
+  pending:     "review",
+  accepted:    "accepted",
+  in_progress: "in_progress",
+  shipping:    "shipping",
+  completed:   "completed",
+};
+
+function getStepState(stepKey, status) {
+  const s = status || "pending";
+
+  // Rejected terminates at the review step
+  if (s === "rejected") {
+    if (stepKey === "submitted") return "done";
+    if (stepKey === "review") return "rejected";
+    return "pending";
+  }
+
+  // All steps done when completed
+  if (s === "completed") return "done";
+
+  const currentStep = STATUS_TO_STEP[s] || "review";
+  const currentIdx  = STEP_ORDER.indexOf(currentStep);
+  const stepIdx     = STEP_ORDER.indexOf(stepKey);
+
+  if (stepIdx < currentIdx)  return "done";
+  if (stepIdx === currentIdx) return "active";
+  return "pending";
+}
 
 function formatDate(ts) {
   if (!ts) return "";
@@ -28,6 +83,7 @@ export default function MyCustomizations() {
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [contactModal, setContactModal] = useState({ open: false, requestId: null, email: null });
 
   useEffect(() => {
     if (!user) return;
@@ -115,13 +171,62 @@ export default function MyCustomizations() {
                         STATUS_STYLES[req.status] || STATUS_STYLES.pending
                       }`}
                     >
-                      {String(req.status || "pending").toUpperCase()}
+                      {STATUS_LABELS[req.status] || "Under Review"}
                     </span>
                   </div>
 
-                  <p className="text-sm text-gray-500 mb-3">
+                  <p className="text-sm text-gray-500 mb-4">
                     Submitted: {formatDate(req.createdAt)}
                   </p>
+
+                  {/* Status progress tracker */}
+                  <div className="flex items-center gap-0 mb-4">
+                    {STEPS.map((step, idx) => {
+                      const state = getStepState(step.key, req.status);
+                      const isLast = idx === STEPS.length - 1;
+
+                      const dotClass =
+                        state === "done"
+                          ? "bg-green-500 border-green-500"
+                          : state === "rejected"
+                            ? "bg-red-500 border-red-500"
+                            : state === "active"
+                              ? "bg-yellow-400 border-yellow-400"
+                              : "bg-white border-gray-300";
+
+                      const labelClass =
+                        state === "done"
+                          ? "text-green-600 font-medium"
+                          : state === "rejected"
+                            ? "text-red-600 font-medium"
+                            : state === "active"
+                              ? "text-yellow-600 font-medium"
+                              : "text-gray-400";
+
+                      const lineClass =
+                        state === "done"
+                          ? "bg-green-400"
+                          : "bg-gray-200";
+
+                      const label = step.label;
+
+                      return (
+                        <div key={step.key} className="flex items-center flex-1">
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${dotClass}`}
+                            />
+                            <span className={`text-xs mt-1 whitespace-nowrap ${labelClass}`}>
+                              {label}
+                            </span>
+                          </div>
+                          {!isLast && (
+                            <div className={`flex-1 h-0.5 mx-1 mb-4 ${lineClass}`} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-700">
                     {req.duration && (
@@ -142,6 +247,17 @@ export default function MyCustomizations() {
                           .join(" × ")}
                       </p>
                     ) : null}
+                    {req.estimatedDelivery &&
+                      ["accepted", "in_progress", "shipping", "completed"].includes(req.status) && (
+                        <p>
+                          <span className="font-medium">Estimated Delivery:</span>{" "}
+                          {new Date(req.estimatedDelivery).toLocaleDateString(undefined, {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </p>
+                      )}
                   </div>
 
                   {req.details && (
@@ -151,9 +267,24 @@ export default function MyCustomizations() {
                   )}
 
                   {req.status === "accepted" && (
-                    <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+                    <p className="mt-3 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
                       Your request has been accepted. We will contact you soon
                       at <strong>{req.email}</strong>.
+                    </p>
+                  )}
+                  {req.status === "in_progress" && (
+                    <p className="mt-3 text-sm text-purple-700 bg-purple-50 border border-purple-200 rounded px-3 py-2">
+                      We are currently crafting your custom order. We will notify you once it is ready to ship.
+                    </p>
+                  )}
+                  {req.status === "shipping" && (
+                    <p className="mt-3 text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-3 py-2">
+                      Your custom order is on its way! It has been packed and shipped to you.
+                    </p>
+                  )}
+                  {req.status === "completed" && (
+                    <p className="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+                      Your custom order has been delivered and completed. Thank you for choosing us!
                     </p>
                   )}
                   {req.status === "rejected" && (
@@ -170,12 +301,36 @@ export default function MyCustomizations() {
                       </span>
                     </p>
                   )}
+
+                  <div className="mt-4 flex justify-end border-t pt-3">
+                    <button
+                      onClick={() =>
+                        setContactModal({
+                          open: true,
+                          requestId: req.id,
+                          email: req.email || req.userEmail || user?.email,
+                        })
+                      }
+                      className="text-sm text-red-700 hover:underline"
+                    >
+                      Contact Support
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ContactSupportModal
+        open={contactModal.open}
+        onClose={() => setContactModal({ open: false, requestId: null, email: null })}
+        type="customization"
+        referenceId={contactModal.requestId}
+        customerEmail={contactModal.email}
+        customerName={user?.displayName || ""}
+      />
     </div>
   );
 }

@@ -2,8 +2,25 @@
 import { Navigate, NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, limit, orderBy, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "../firebase";
+import ContactSupportModal from "../components/ContactSupportModal";
+
+const STATUS_LABELS = {
+  pending:    "Pending",
+  paid:       "Payment Confirmed",
+  processing: "Processing",
+  shipped:    "Shipped",
+  completed:  "Delivered",
+  cancelled:  "Cancelled",
+};
 
 function formatMoney(n) {
   const num = Number(n || 0);
@@ -22,6 +39,7 @@ export default function UserOrders() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [contactModal, setContactModal] = useState({ open: false, orderId: null, email: null, name: null });
 
   useEffect(() => {
     if (!user) return;
@@ -32,7 +50,8 @@ export default function UserOrders() {
         const q = query(
           collection(db, "orders"),
           where("userId", "==", user.uid),
-          orderBy("createdAt", "desc"),limit(20)
+          orderBy("createdAt", "desc"),
+          limit(20),
         );
 
         const snap = await getDocs(q);
@@ -114,19 +133,31 @@ export default function UserOrders() {
                       order.status === "pending"
                         ? "bg-yellow-50 border-yellow-200 text-yellow-700"
                         : order.status === "paid"
-                        ? "bg-blue-50 border-blue-200 text-blue-700"
-                        : order.status === "processing"
-                        ? "bg-purple-50 border-purple-200 text-purple-700"
-                        : order.status === "shipped"
-                        ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                        : order.status === "completed"
-                        ? "bg-green-50 border-green-200 text-green-700"
-                        : order.status === "cancelled"
-                        ? "bg-red-50 border-red-200 text-red-700"
-                        : "bg-gray-50 border-gray-200 text-gray-700"
+                          ? "bg-blue-50 border-blue-200 text-blue-700"
+                          : order.status === "processing"
+                            ? "bg-purple-50 border-purple-200 text-purple-700"
+                            : order.status === "shipped"
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                              : order.status === "completed"
+                                ? "bg-green-50 border-green-200 text-green-700"
+                                : order.status === "cancelled"
+                                  ? "bg-red-50 border-red-200 text-red-700"
+                                  : "bg-gray-50 border-gray-200 text-gray-700"
                     }`}
                   >
-                    {String(order.status || "pending").toUpperCase()}
+                    {STATUS_LABELS[order.status] || String(order.status || "pending").toUpperCase()}
+                  </span>
+
+                  <span
+                    className={`text-xs px-3 py-1 rounded-full border ${
+                      order.paymentMethod === "cod"
+                        ? "bg-orange-50 border-orange-200 text-orange-700"
+                        : "bg-blue-50 border-blue-200 text-blue-700"
+                    }`}
+                  >
+                    {order.paymentMethod === "cod"
+                      ? "Cash on Delivery"
+                      : "Card"}
                   </span>
 
                   <p className="text-lg font-semibold text-red-700">
@@ -143,12 +174,20 @@ export default function UserOrders() {
                     <p className="text-gray-600">
                       {order.customer.fullName}
                       <br />
-                      {[order.customer.houseNumber, order.customer.street].filter(Boolean).join(" ")}
-                      {(order.customer.houseNumber || order.customer.street) && <br />}
-                      {order.customer.city}{order.customer.province ? `, ${order.customer.province}` : ""}
+                      {[order.customer.houseNumber, order.customer.street]
+                        .filter(Boolean)
+                        .join(" ")}
+                      {(order.customer.houseNumber ||
+                        order.customer.street) && <br />}
+                      {order.customer.city}
+                      {order.customer.province
+                        ? `, ${order.customer.province}`
+                        : ""}
                       <br />
                       {order.customer.country}
-                      {order.customer.postalCode ? ` ${order.customer.postalCode}` : ""}
+                      {order.customer.postalCode
+                        ? ` ${order.customer.postalCode}`
+                        : ""}
                     </p>
                   </div>
 
@@ -179,7 +218,8 @@ export default function UserOrders() {
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
                       <p className="text-sm text-gray-500">
-                        {item.category} • {item.selectedColor} •{" "} {item.selectedMaterial}
+                        {item.category} • {item.selectedColor} •{" "}
+                        {item.selectedMaterial}
                       </p>
                       <p className="text-sm text-gray-700 mt-1">
                         {item.quantity} × ${formatMoney(item.price)}
@@ -196,19 +236,35 @@ export default function UserOrders() {
               {/* Footer */}
               <div className="mt-6 flex items-center justify-between border-t pt-4">
                 <p className="text-sm text-gray-500">
-                  Need help? Contact us from the Contact page.
+                  Have a question about this order?
                 </p>
-                <NavLink
-                  to="/contact"
+                <button
+                  onClick={() =>
+                    setContactModal({
+                      open: true,
+                      orderId: order.id,
+                      email: order.customer?.email || user?.email,
+                      name: order.customer?.fullName,
+                    })
+                  }
                   className="text-sm text-red-700 hover:underline"
                 >
-                  Contact
-                </NavLink>
+                  Contact Support
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ContactSupportModal
+        open={contactModal.open}
+        onClose={() => setContactModal({ open: false, orderId: null, email: null, name: null })}
+        type="order"
+        referenceId={contactModal.orderId}
+        customerEmail={contactModal.email}
+        customerName={contactModal.name}
+      />
     </div>
   );
 }

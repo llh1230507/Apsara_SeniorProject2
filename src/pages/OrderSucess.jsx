@@ -24,10 +24,10 @@ export default function OrderSuccess() {
         We'll contact you shortly with shipping details.
       </p>
       <NavLink
-        to="/products"
+        to="/orders"
         className="bg-red-700 text-white px-6 py-3 rounded-lg inline-block"
       >
-        Continue Shopping
+        Continue to Order page
       </NavLink>
     </div>
   );

@@ -227,11 +227,13 @@ export default function Profile() {
         <div className="space-y-1">
           <label className="text-sm font-medium text-gray-700">Phone</label>
           <input
-            type="text"
+            type="tel"
             placeholder="Phone number"
             className="border p-3 w-full rounded-lg"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) =>
+              setPhone(e.target.value.replace(/[^\d\s+\-()\[\]]/g, ""))
+            }
           />
         </div>
 
