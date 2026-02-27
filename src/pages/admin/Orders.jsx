@@ -308,7 +308,7 @@ export default function Orders() {
                     <td className="p-3">
                       {order.paymentMethod === "cod" ? (
                         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                          Card on Delievery
+                          Cash on Delievery
                         </span>
                       ) : (
                         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
