@@ -26,19 +26,19 @@ const REJECTION_REASONS = [
 
 // Post-acceptance pipeline statuses
 const PROGRESS_OPTIONS = [
-  { value: "accepted",    label: "Accepted" },
+  { value: "accepted", label: "Accepted" },
   { value: "in_progress", label: "In Progress" },
-  { value: "shipping",    label: "Shipping" },
-  { value: "completed",   label: "Completed" },
+  { value: "shipping", label: "Shipping" },
+  { value: "completed", label: "Completed" },
 ];
 
 const PROGRESS_STYLES = {
-  pending:     "bg-yellow-100 text-yellow-700",
-  accepted:    "bg-blue-100 text-blue-700",
+  pending: "bg-yellow-100 text-yellow-700",
+  accepted: "bg-blue-100 text-blue-700",
   in_progress: "bg-purple-100 text-purple-700",
-  shipping:    "bg-indigo-100 text-indigo-700",
-  completed:   "bg-green-100 text-green-700",
-  rejected:    "bg-red-100 text-red-700",
+  shipping: "bg-indigo-100 text-indigo-700",
+  completed: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
 };
 
 const fmtNum = (n) => Number(n || 0);
@@ -147,7 +147,9 @@ export default function CustomizeRequest() {
   const handleUnarchive = async (id) => {
     setBusy((b) => ({ ...b, [id]: true }));
     try {
-      await updateDoc(doc(db, "customizationRequests", id), { archived: false });
+      await updateDoc(doc(db, "customizationRequests", id), {
+        archived: false,
+      });
     } catch (err) {
       console.error(err);
       alert("Failed to unarchive request");
@@ -162,7 +164,9 @@ export default function CustomizeRequest() {
 
   const handleDeliveryDateChange = async (id, dateStr) => {
     try {
-      await updateDoc(doc(db, "customizationRequests", id), { estimatedDelivery: dateStr });
+      await updateDoc(doc(db, "customizationRequests", id), {
+        estimatedDelivery: dateStr,
+      });
     } catch (err) {
       console.error(err);
     }
@@ -203,12 +207,12 @@ export default function CustomizeRequest() {
   };
 
   const STATUS_DISPLAY = {
-    pending:     "Pending",
-    accepted:    "Accepted",
+    pending: "Pending",
+    accepted: "Accepted",
     in_progress: "In Progress",
-    shipping:    "Shipping",
-    completed:   "Completed",
-    rejected:    "Rejected",
+    shipping: "Shipping",
+    completed: "Completed",
+    rejected: "Rejected",
   };
 
   const statusBadge = (status = "pending") => (
@@ -226,7 +230,11 @@ export default function CustomizeRequest() {
     const q = search.trim().toLowerCase();
     if (!q) return pool;
     return pool.filter((r) => {
-      const categoryLabel = (CATEGORY_LABELS[r.category] || r.category || "").toLowerCase();
+      const categoryLabel = (
+        CATEGORY_LABELS[r.category] ||
+        r.category ||
+        ""
+      ).toLowerCase();
       return (
         categoryLabel.includes(q) ||
         (r.userEmail || "").toLowerCase().includes(q) ||
@@ -238,8 +246,14 @@ export default function CustomizeRequest() {
     });
   }, [requests, search, showArchived]);
 
-  const activeCount = useMemo(() => requests.filter((r) => !r.archived).length, [requests]);
-  const archivedCount = useMemo(() => requests.filter((r) => !!r.archived).length, [requests]);
+  const activeCount = useMemo(
+    () => requests.filter((r) => !r.archived).length,
+    [requests],
+  );
+  const archivedCount = useMemo(
+    () => requests.filter((r) => !!r.archived).length,
+    [requests],
+  );
 
   return (
     <div className="bg-white rounded-2xl shadow p-6">
@@ -252,10 +266,14 @@ export default function CustomizeRequest() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-500">
-            {filtered.length} {showArchived ? "archived" : "active"} request{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} {showArchived ? "archived" : "active"} request
+            {filtered.length !== 1 ? "s" : ""}
           </span>
           <button
-            onClick={() => { setShowArchived((v) => !v); setSearch(""); }}
+            onClick={() => {
+              setShowArchived((v) => !v);
+              setSearch("");
+            }}
             className={`text-xs px-3 py-1.5 rounded-full border font-medium transition ${
               showArchived
                 ? "bg-gray-800 text-white border-gray-800"
@@ -289,7 +307,7 @@ export default function CustomizeRequest() {
                 <th className="py-3 text-left whitespace-nowrap">Customer</th>
                 <th className="py-3 text-left whitespace-nowrap">Contact</th>
                 <th className="py-3 text-left whitespace-nowrap">Size (cm)</th>
-                <th className="py-3 text-left whitespace-nowrap">Duration</th>
+
                 <th className="py-3 text-left">Details</th>
                 <th className="py-3 text-left whitespace-nowrap">Image</th>
                 <th className="py-3 text-left whitespace-nowrap">Date</th>
@@ -301,11 +319,19 @@ export default function CustomizeRequest() {
             <tbody>
               {filtered.map((r) => {
                 const status = r.status || "pending";
-                const PIPELINE = ["accepted", "in_progress", "shipping", "completed"];
-                const inPipeline = PIPELINE.includes(status);
-                const canAccept = !inPipeline && status !== "accepted";
-                const canReject = !inPipeline && status !== "rejected";
-                const showProgress = ["accepted", "in_progress", "shipping"].includes(status);
+                // Allow accept/reject at any stage except completed
+                const isCompleted = status === "completed";
+                const canAccept =
+                  !isCompleted &&
+                  status !== "accepted" &&
+                  status !== "in_progress" &&
+                  status !== "shipping";
+                const canReject = !isCompleted && status !== "rejected";
+                const showProgress = [
+                  "accepted",
+                  "in_progress",
+                  "shipping",
+                ].includes(status);
                 const isBusy = !!busy[r.id];
                 const s = r.size || {};
 
@@ -344,10 +370,6 @@ export default function CustomizeRequest() {
 
                     <td className="py-4 pr-4 align-top text-gray-700 whitespace-nowrap">
                       {W}×{L}×{H}
-                    </td>
-
-                    <td className="py-4 pr-4 align-top text-gray-700 whitespace-nowrap">
-                      {r.duration || "-"}
                     </td>
 
                     <td className="py-4 pr-4 align-top max-w-sm">
@@ -452,7 +474,8 @@ export default function CustomizeRequest() {
                             disabled={isBusy}
                             onChange={(e) => updateStatus(r, e.target.value)}
                             className={`px-2 py-1 rounded text-xs font-semibold border-0 cursor-pointer ${
-                              PROGRESS_STYLES[status] || PROGRESS_STYLES.accepted
+                              PROGRESS_STYLES[status] ||
+                              PROGRESS_STYLES.accepted
                             } ${isBusy ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             {PROGRESS_OPTIONS.map((p) => (
