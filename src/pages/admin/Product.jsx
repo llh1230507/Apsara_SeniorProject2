@@ -1,6 +1,7 @@
 // src/pages/admin/Product.jsx
 import { useEffect, useState } from "react";
 import ProductForm from "../../components/admin/ProductForm";
+import useCategories from "../../hooks/useCategories";
 import {
   createProduct,
   getAllProducts,
@@ -14,6 +15,9 @@ function Product() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
+  const { categories } = useCategories();
 
   const refreshProducts = async () => {
     const data = await getAllProducts();
@@ -72,12 +76,32 @@ function Product() {
 
   const filteredProducts = (() => {
     const q = search.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.category || "").toLowerCase().includes(q),
-    );
+    let list = products;
+
+    // Filter by category tab
+    if (selectedCategory !== "all") {
+      list = list.filter((p) => (p.category || "") === selectedCategory);
+    }
+
+    // Filter by search text
+    if (q) {
+      list = list.filter(
+        (p) =>
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.category || "").toLowerCase().includes(q),
+      );
+    }
+
+    return list;
+  })();
+
+  // Count products per category for badge numbers
+  const categoryCounts = (() => {
+    const counts = { all: products.length };
+    for (const cat of categories) {
+      counts[cat.key] = products.filter((p) => p.category === cat.key).length;
+    }
+    return counts;
   })();
 
   return (
@@ -121,6 +145,41 @@ function Product() {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
             />
+          </div>
+
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("all")}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                selectedCategory === "all"
+                  ? "bg-red-700 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              All
+              <span className="ml-1.5 text-xs opacity-75">
+                ({categoryCounts.all})
+              </span>
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.key}
+                type="button"
+                onClick={() => setSelectedCategory(cat.key)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                  selectedCategory === cat.key
+                    ? "bg-red-700 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {cat.label}
+                <span className="ml-1.5 text-xs opacity-75">
+                  ({categoryCounts[cat.key] || 0})
+                </span>
+              </button>
+            ))}
           </div>
 
           <div className="bg-white rounded shadow overflow-x-auto">

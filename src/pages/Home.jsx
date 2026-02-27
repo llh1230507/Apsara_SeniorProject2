@@ -2,7 +2,14 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useProducts } from "../hooks/useProducts";
-import { FaHammer, FaGem, FaGlobeAsia, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import useCategories from "../hooks/useCategories";
+import {
+  FaHammer,
+  FaGem,
+  FaGlobeAsia,
+  FaChevronLeft,
+  FaChevronRight,
+} from "react-icons/fa";
 
 /* ---------- Helpers ---------- */
 const getThumb = (p) => p?.imageUrl || Object.values(p?.images || {})[0] || "";
@@ -73,7 +80,6 @@ function ProductCard({ product }) {
         <h3 className="font-semibold text-lg mt-1 line-clamp-1">
           {product.name}
         </h3>
-        
       </div>
     </Link>
   );
@@ -96,19 +102,16 @@ export default function Home() {
     return () => clearInterval(t);
   }, [bannerImages.length]);
 
-  // Pick up to 2 products per category for Featured Products (6 total)
+  // Pick up to 2 products per category for Featured Products
+  const { categories: catList } = useCategories();
   const featured = useMemo(() => {
-    const byCat = {
-      wood: products.filter((p) => p.category === "wood"),
-      stone: products.filter((p) => p.category === "stone"),
-      furniture: products.filter((p) => p.category === "furniture"),
-    };
-    return [
-      ...byCat.wood.slice(0, 2),
-      ...byCat.stone.slice(0, 2),
-      ...byCat.furniture.slice(0, 2),
-    ];
-  }, [products]);
+    const result = [];
+    for (const cat of catList) {
+      const matching = products.filter((p) => p.category === cat.key);
+      result.push(...matching.slice(0, 2));
+    }
+    return result;
+  }, [products, catList]);
 
   const scrollRef = useRef(null);
   const scroll = useCallback((dir) => {
@@ -236,7 +239,10 @@ export default function Home() {
         {loading ? (
           <div className="mt-10 flex gap-6 overflow-hidden">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="border rounded overflow-hidden animate-pulse flex-shrink-0 w-64">
+              <div
+                key={i}
+                className="border rounded overflow-hidden animate-pulse flex-shrink-0 w-64"
+              >
                 <div className="aspect-[4/3] bg-gray-200" />
                 <div className="p-4 space-y-2">
                   <div className="h-3 bg-gray-200 rounded w-1/3" />

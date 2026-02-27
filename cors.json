@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "https://apsara-dd748.web.app",
+      "https://apsara-dd748.firebaseapp.com",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    "method": ["GET", "HEAD"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type"]
+  }
+]

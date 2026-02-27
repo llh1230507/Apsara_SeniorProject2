@@ -11,6 +11,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import useCategories from "../hooks/useCategories";
 
 const PAGE_SIZE = 12;
 
@@ -18,13 +19,6 @@ const money = (n) => Number(n || 0).toFixed(2);
 
 const getThumb = (p) =>
   p?.imageUrl || Object.values(p?.images || {})[0] || null;
-
-const CATEGORY_LABELS = [
-  { key: "all", label: "All Products" },
-  { key: "wood", label: "Wood Sculptures" },
-  { key: "stone", label: "Stone Art" },
-  { key: "furniture", label: "Furniture" },
-];
 
 const PRICE_MAX = 5000;
 
@@ -34,6 +28,12 @@ export default function Products() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const lastDocRef = useRef(null);
+
+  const { categories: catList } = useCategories();
+  const CATEGORY_LABELS = [
+    { key: "all", label: "All Products" },
+    ...catList.map((c) => ({ key: c.key, label: c.label })),
+  ];
 
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [category, setCategory] = useState("all");

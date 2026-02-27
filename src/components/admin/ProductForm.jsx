@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../../firebase";
+import useCategories from "../../hooks/useCategories";
 
 const DEFAULT_MATERIAL_PRICE = { standard: "0", premium: "60" };
 
@@ -11,9 +12,10 @@ export default function ProductForm({
   editingProduct,
   onCancel,
 }) {
+  const { categories: catList } = useCategories();
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("wood");
+  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
 
   // one-size product dimensions
@@ -37,7 +39,10 @@ export default function ProductForm({
   const [frames360Files, setFrames360Files] = useState([]);
   const [frames360Previews, setFrames360Previews] = useState([]);
   const [uploading360, setUploading360] = useState(false);
-  const [uploadProgress360, setUploadProgress360] = useState({ done: 0, total: 0 });
+  const [uploadProgress360, setUploadProgress360] = useState({
+    done: 0,
+    total: 0,
+  });
 
   const [error, setError] = useState("");
   const [stock, setStock] = useState("");
@@ -48,7 +53,7 @@ export default function ProductForm({
 
     setName(editingProduct.name || "");
     setPrice(editingProduct.price ?? "");
-    setCategory(editingProduct.category || "wood");
+    setCategory(editingProduct.category || "");
     setDescription(editingProduct.description || "");
 
     setImages(editingProduct.images || {});
@@ -213,7 +218,7 @@ export default function ProductForm({
     // Reset
     setName("");
     setPrice("");
-    setCategory("wood");
+    setCategory("");
     setDescription("");
     setImages({});
     setImageUrl("");
@@ -298,9 +303,12 @@ export default function ProductForm({
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
-                <option value="wood">Wood</option>
-                <option value="stone">Stone</option>
-                <option value="furniture">Furniture</option>
+                <option value="">Select category</option>
+                {catList.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -447,7 +455,7 @@ export default function ProductForm({
               <h3 className="font-semibold">360° Frames</h3>
               <p className="text-xs text-gray-500 mt-0.5">
                 {images360.length} frame{images360.length !== 1 ? "s" : ""}{" "}
-                uploaded 
+                uploaded
               </p>
             </div>
             {images360.length > 0 && (

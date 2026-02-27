@@ -12,14 +12,16 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import ContactSupportModal from "../components/ContactSupportModal";
+import ReturnRequestModal from "../components/ReturnRequestModal";
 
 const STATUS_LABELS = {
-  pending:    "Pending",
-  paid:       "Payment Confirmed",
+  pending: "Pending",
+  paid: "Payment Confirmed",
   processing: "Processing",
-  shipped:    "Shipped",
-  completed:  "Delivered",
-  cancelled:  "Cancelled",
+  shipped: "Shipped",
+  completed: "Delivered",
+  cancelled: "Cancelled",
+  returned: "Returned",
 };
 
 function formatMoney(n) {
@@ -39,7 +41,13 @@ export default function UserOrders() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [contactModal, setContactModal] = useState({ open: false, orderId: null, email: null, name: null });
+  const [contactModal, setContactModal] = useState({
+    open: false,
+    orderId: null,
+    email: null,
+    name: null,
+  });
+  const [returnModal, setReturnModal] = useState({ open: false, order: null });
 
   useEffect(() => {
     if (!user) return;
@@ -142,10 +150,13 @@ export default function UserOrders() {
                                 ? "bg-green-50 border-green-200 text-green-700"
                                 : order.status === "cancelled"
                                   ? "bg-red-50 border-red-200 text-red-700"
-                                  : "bg-gray-50 border-gray-200 text-gray-700"
+                                  : order.status === "returned"
+                                    ? "bg-orange-50 border-orange-200 text-orange-700"
+                                    : "bg-gray-50 border-gray-200 text-gray-700"
                     }`}
                   >
-                    {STATUS_LABELS[order.status] || String(order.status || "pending").toUpperCase()}
+                    {STATUS_LABELS[order.status] ||
+                      String(order.status || "pending").toUpperCase()}
                   </span>
 
                   <span
@@ -238,19 +249,29 @@ export default function UserOrders() {
                 <p className="text-sm text-gray-500">
                   Have a question about this order?
                 </p>
-                <button
-                  onClick={() =>
-                    setContactModal({
-                      open: true,
-                      orderId: order.id,
-                      email: order.customer?.email || user?.email,
-                      name: order.customer?.fullName,
-                    })
-                  }
-                  className="text-sm text-red-700 hover:underline"
-                >
-                  Contact Support
-                </button>
+                <div className="flex items-center gap-4">
+                  {order.status === "completed" && (
+                    <button
+                      onClick={() => setReturnModal({ open: true, order })}
+                      className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition font-medium"
+                    >
+                      Request Return
+                    </button>
+                  )}
+                  <button
+                    onClick={() =>
+                      setContactModal({
+                        open: true,
+                        orderId: order.id,
+                        email: order.customer?.email || user?.email,
+                        name: order.customer?.fullName,
+                      })
+                    }
+                    className="text-sm text-red-700 hover:underline"
+                  >
+                    Contact Support
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -259,11 +280,25 @@ export default function UserOrders() {
 
       <ContactSupportModal
         open={contactModal.open}
-        onClose={() => setContactModal({ open: false, orderId: null, email: null, name: null })}
+        onClose={() =>
+          setContactModal({
+            open: false,
+            orderId: null,
+            email: null,
+            name: null,
+          })
+        }
         type="order"
         referenceId={contactModal.orderId}
         customerEmail={contactModal.email}
         customerName={contactModal.name}
+      />
+
+      <ReturnRequestModal
+        open={returnModal.open}
+        onClose={() => setReturnModal({ open: false, order: null })}
+        order={returnModal.order}
+        userId={user?.uid}
       />
     </div>
   );

@@ -5,15 +5,11 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../firebase";
 import { useAuth } from "../context/AuthContext";
 import ReCAPTCHA from "react-google-recaptcha";
-
-const CATEGORIES = [
-  { key: "wood", label: "Wood Sculptures" },
-  { key: "stone", label: "Stone Art" },
-  { key: "furniture", label: "Furniture" },
-];
+import useCategories from "../hooks/useCategories";
 
 export default function Customize() {
   const { user } = useAuth();
+  const { categories: CATEGORIES } = useCategories();
 
   const [category, setCategory] = useState("");
   const [height, setHeight] = useState("");
@@ -70,7 +66,9 @@ export default function Customize() {
       return setError("Please enter a valid email address.");
     if (!phone.trim()) return setError("Please enter your phone number.");
     if (!/^\+?[\d\s\-()\[\]]{7,20}$/.test(phone.trim()))
-      return setError("Please enter a valid phone number (digits only, 7–20 characters).");
+      return setError(
+        "Please enter a valid phone number (digits only, 7–20 characters).",
+      );
     const h = Number(height);
     const w = Number(width);
     const l = Number(length);

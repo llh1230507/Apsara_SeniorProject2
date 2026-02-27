@@ -1,7 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { Navigate, useNavigate, NavLink } from "react-router-dom";
 import { httpsCallable } from "firebase/functions";
-import { addDoc, collection, serverTimestamp, writeBatch, doc, increment, getDoc } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  writeBatch,
+  doc,
+  increment,
+  getDoc,
+} from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthModal } from "../context/AuthModalContext";
@@ -69,47 +77,95 @@ const COUNTRIES = [
 
 const COUNTRY_REGION = {
   // Asia
-  Thailand: "asia", Cambodia: "asia", Laos: "asia", Myanmar: "asia",
-  Vietnam: "asia", Malaysia: "asia", Singapore: "asia", Indonesia: "asia",
-  Philippines: "asia", Brunei: "asia", China: "asia", Japan: "asia",
-  "South Korea": "asia", India: "asia", Bangladesh: "asia", Nepal: "asia",
-  "Sri Lanka": "asia", Pakistan: "asia",
+  Thailand: "asia",
+  Cambodia: "asia",
+  Laos: "asia",
+  Myanmar: "asia",
+  Vietnam: "asia",
+  Malaysia: "asia",
+  Singapore: "asia",
+  Indonesia: "asia",
+  Philippines: "asia",
+  Brunei: "asia",
+  China: "asia",
+  Japan: "asia",
+  "South Korea": "asia",
+  India: "asia",
+  Bangladesh: "asia",
+  Nepal: "asia",
+  "Sri Lanka": "asia",
+  Pakistan: "asia",
   // Oceania
-  Australia: "oceania", "New Zealand": "oceania",
+  Australia: "oceania",
+  "New Zealand": "oceania",
   // Europe
-  "United Kingdom": "europe", Germany: "europe", France: "europe",
-  Italy: "europe", Spain: "europe", Netherlands: "europe", Belgium: "europe",
-  Sweden: "europe", Norway: "europe", Denmark: "europe", Finland: "europe",
-  Switzerland: "europe", Austria: "europe", Portugal: "europe",
-  Poland: "europe", "Czech Republic": "europe", Russia: "europe",
+  "United Kingdom": "europe",
+  Germany: "europe",
+  France: "europe",
+  Italy: "europe",
+  Spain: "europe",
+  Netherlands: "europe",
+  Belgium: "europe",
+  Sweden: "europe",
+  Norway: "europe",
+  Denmark: "europe",
+  Finland: "europe",
+  Switzerland: "europe",
+  Austria: "europe",
+  Portugal: "europe",
+  Poland: "europe",
+  "Czech Republic": "europe",
+  Russia: "europe",
   Ukraine: "europe",
   // Americas
-  "United States": "americas", Canada: "americas", Brazil: "americas",
-  Argentina: "americas", Mexico: "americas", Colombia: "americas",
-  Chile: "americas", Peru: "americas",
+  "United States": "americas",
+  Canada: "americas",
+  Brazil: "americas",
+  Argentina: "americas",
+  Mexico: "americas",
+  Colombia: "americas",
+  Chile: "americas",
+  Peru: "americas",
   // Middle East
-  Turkey: "middleEast", "Saudi Arabia": "middleEast",
-  "United Arab Emirates": "middleEast", Qatar: "middleEast",
-  Kuwait: "middleEast", Israel: "middleEast",
+  Turkey: "middleEast",
+  "Saudi Arabia": "middleEast",
+  "United Arab Emirates": "middleEast",
+  Qatar: "middleEast",
+  Kuwait: "middleEast",
+  Israel: "middleEast",
   // Africa
-  Egypt: "africa", "South Africa": "africa", Nigeria: "africa", Kenya: "africa",
+  Egypt: "africa",
+  "South Africa": "africa",
+  Nigeria: "africa",
+  Kenya: "africa",
 };
 
-// Shipping cost in USD by region and speed
+// Shipping cost in USD by region and speed (base rate for standard items)
 const SHIPPING_RATES = {
-  asia:       { standard: 8,  express: 20 },
-  oceania:    { standard: 18, express: 45 },
+  asia: { standard: 8, express: 20 },
+  oceania: { standard: 18, express: 45 },
   middleEast: { standard: 15, express: 38 },
-  africa:     { standard: 20, express: 50 },
-  europe:     { standard: 22, express: 55 },
-  americas:   { standard: 25, express: 60 },
+  africa: { standard: 20, express: 50 },
+  europe: { standard: 22, express: 55 },
+  americas: { standard: 25, express: 60 },
+};
+
+// Extra per-item surcharge for bulky/heavy categories
+const BULKY_CATEGORIES = ["furniture"];
+const BULKY_SURCHARGE = {
+  asia: { standard: 15, express: 30 },
+  oceania: { standard: 35, express: 70 },
+  middleEast: { standard: 30, express: 60 },
+  africa: { standard: 40, express: 80 },
+  europe: { standard: 45, express: 90 },
+  americas: { standard: 50, express: 100 },
 };
 
 const CARRIERS = ["DHL", "UPS", "FedEx"];
 
 const SPEEDS = [
   { key: "standard", label: "Standard", desc: "7–14 business days" },
-  { key: "express",  label: "Express",  desc: "2–5 business days"  },
+  { key: "express", label: "Express", desc: "2–5 business days" },
 ];
 
 // Country → { code, symbol }
@@ -206,16 +262,16 @@ export default function Checkout() {
         const d = snap.data();
         setForm((prev) => ({
           ...prev,
-          firstName:   d.firstName   || "",
-          lastName:    d.lastName    || "",
-          email:       d.email       || user.email || "",
-          phone:       d.phone       || "",
+          firstName: d.firstName || "",
+          lastName: d.lastName || "",
+          email: d.email || user.email || "",
+          phone: d.phone || "",
           houseNumber: d.houseNumber || "",
-          street:      d.street      || "",
-          city:        d.city        || "",
-          province:    d.province    || "",
-          country:     d.country     || "Thailand",
-          postalCode:  d.postalCode  || "",
+          street: d.street || "",
+          city: d.city || "",
+          province: d.province || "",
+          country: d.country || "Thailand",
+          postalCode: d.postalCode || "",
         }));
       } else {
         setForm((prev) => ({ ...prev, email: user.email || "" }));
@@ -248,15 +304,41 @@ export default function Checkout() {
     0,
   );
   const region = COUNTRY_REGION[form.country] || "asia";
-  const shipping = SHIPPING_RATES[region][speed];
+  const baseShipping = SHIPPING_RATES[region][speed];
+
+  // Count bulky items (furniture etc.) for surcharge
+  const bulkyCount = cartItems.reduce((count, item) => {
+    if (BULKY_CATEGORIES.includes((item.category || "").toLowerCase())) {
+      return count + Number(item.quantity || 1);
+    }
+    return count;
+  }, 0);
+  const bulkySurcharge =
+    bulkyCount > 0 ? bulkyCount * (BULKY_SURCHARGE[region]?.[speed] || 0) : 0;
+  const shipping = baseShipping + bulkySurcharge;
   const total = subtotal + shipping;
+  const isCambodia = form.country === "Cambodia";
+
+  // Auto-switch to Stripe when country is not Cambodia
+  useEffect(() => {
+    if (!isCambodia && paymentMethod === "cod") {
+      setPaymentMethod("stripe");
+    }
+  }, [isCambodia, paymentMethod]);
 
   // Currency display helpers
-  const currencyInfo = COUNTRY_CURRENCY[form.country] || { code: "USD", symbol: "$" };
+  const currencyInfo = COUNTRY_CURRENCY[form.country] || {
+    code: "USD",
+    symbol: "$",
+  };
   const fxRate = exchangeRates[currencyInfo.code] || 1;
   const fmt = (usd) => {
     const converted = usd * fxRate;
-    const decimals = ["JPY", "KRW", "VND", "IDR", "CLP", "MMK", "LAK"].includes(currencyInfo.code) ? 0 : 2;
+    const decimals = ["JPY", "KRW", "VND", "IDR", "CLP", "MMK", "LAK"].includes(
+      currencyInfo.code,
+    )
+      ? 0
+      : 2;
     return `${currencyInfo.symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
   };
   const isUSD = currencyInfo.code === "USD";
@@ -270,7 +352,9 @@ export default function Checkout() {
     setError(null);
 
     if (!/^\+?[\d\s\-()\[\]]{7,20}$/.test(form.phone.trim())) {
-      setError("Please enter a valid phone number (digits only, 7–20 characters).");
+      setError(
+        "Please enter a valid phone number (digits only, 7–20 characters).",
+      );
       setLoading(false);
       return;
     }
@@ -494,10 +578,17 @@ export default function Checkout() {
             </div>
 
             {/* Speed */}
-            <p className="text-sm font-medium text-gray-700 mb-2">Delivery Speed</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Delivery Speed
+            </p>
             <div className="grid sm:grid-cols-2 gap-3">
               {SPEEDS.map((s) => {
-                const rate = SHIPPING_RATES[region][s.key];
+                const base = SHIPPING_RATES[region][s.key];
+                const surcharge =
+                  bulkyCount > 0
+                    ? bulkyCount * (BULKY_SURCHARGE[region]?.[s.key] || 0)
+                    : 0;
+                const rate = base + surcharge;
                 return (
                   <button
                     key={s.key}
@@ -552,40 +643,44 @@ export default function Checkout() {
                 )}
               </button>
 
-              {/* Cash on Delievery */}
+              {/* Cash on Delivery */}
               <button
                 type="button"
-                onClick={() => setPaymentMethod("cod")}
+                onClick={() => isCambodia && setPaymentMethod("cod")}
+                disabled={!isCambodia}
                 className={`flex items-center gap-3 border-2 rounded-xl px-4 py-4 text-left transition ${
-                  paymentMethod === "cod"
-                    ? "border-red-600 bg-red-50"
-                    : "border-gray-200 hover:border-gray-300"
+                  !isCambodia
+                    ? "border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed"
+                    : paymentMethod === "cod"
+                      ? "border-red-600 bg-red-50"
+                      : "border-gray-200 hover:border-gray-300"
                 }`}
               >
                 <FaMoneyBillWave
                   className={`text-xl ${
-                    paymentMethod === "cod" ? "text-red-600" : "text-gray-400"
+                    paymentMethod === "cod" && isCambodia
+                      ? "text-red-600"
+                      : "text-gray-400"
                   }`}
                 />
                 <div>
-                  <p className="font-semibold text-sm">Cash on Delievery</p>
+                  <p className="font-semibold text-sm">Cash on Delivery</p>
                   <p className="text-xs text-gray-500">
-                    Pay with cash upon delivery
+                    {isCambodia
+                      ? "Pay with cash upon delivery"
+                      : "Available for Cambodia only"}
                   </p>
                 </div>
-                {paymentMethod === "cod" && (
+                {paymentMethod === "cod" && isCambodia && (
                   <span className="ml-auto w-4 h-4 rounded-full bg-red-600" />
                 )}
               </button>
             </div>
 
-            {paymentMethod === "stripe" && (
-              <p className="mt-3 text-sm text-gray-500">
-                
-              </p>
-            )}
-            {paymentMethod === "cod" && (
-              <p className="mt-3 text-sm text-gray-500">
+            {!isCambodia && (
+              <p className="mt-3 text-sm text-amber-600">
+                Cash on Delivery is only available for orders within Cambodia.
+                International orders require card payment.
               </p>
             )}
           </div>
@@ -609,7 +704,8 @@ export default function Checkout() {
                 <div className="flex-1">
                   <p className="font-medium">{item.name}</p>
                   <p className="text-sm text-gray-500">
-                    {item.category} • {item.selectedColor} • {item.selectedMaterial}
+                    {item.category} • {item.selectedColor} •{" "}
+                    {item.selectedMaterial}
                   </p>
                   <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                 </div>
@@ -636,6 +732,12 @@ export default function Checkout() {
               </span>
               <span className="font-medium">{fmt(shipping)}</span>
             </div>
+            {bulkySurcharge > 0 && (
+              <p className="text-xs text-gray-400 ml-1">
+                Includes {fmt(bulkySurcharge)} surcharge for {bulkyCount}{" "}
+                furniture item{bulkyCount !== 1 ? "s" : ""}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-between text-lg font-bold mt-4">
@@ -667,6 +769,18 @@ export default function Checkout() {
             {paymentMethod === "stripe"
               ? "Secure payment powered by Stripe."
               : "Payment collected upon delivery."}
+          </p>
+
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            By placing this order you agree to our{" "}
+            <a
+              href="/return-policy"
+              target="_blank"
+              className="text-red-700 hover:underline"
+            >
+              Return &amp; Refund Policy
+            </a>
+            .
           </p>
         </div>
       </form>

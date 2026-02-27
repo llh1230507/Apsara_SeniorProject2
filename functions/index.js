@@ -222,7 +222,27 @@ exports.stripeWebhook = onRequest(
       case "checkout.session.completed": {
         const session = event.data.object;
         const orderId = session.metadata?.orderId;
+        const custRequestId = session.metadata?.customizationRequestId;
 
+        // ── Customization payment ──
+        if (custRequestId) {
+          const custRef = db
+            .collection("customizationRequests")
+            .doc(custRequestId);
+          await custRef.update({
+            status: "accepted",
+            acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+            stripePaymentIntent: session.payment_intent,
+            paidAt: admin.firestore.FieldValue.serverTimestamp(),
+            paidAmount: session.amount_total / 100,
+          });
+          console.log(
+            `Customization ${custRequestId} paid → accepted. PI: ${session.payment_intent}`,
+          );
+          break;
+        }
+
+        // ── Regular product order ──
         if (!orderId) {
           console.error("No orderId in session metadata");
           break;
@@ -261,5 +281,197 @@ exports.stripeWebhook = onRequest(
     }
 
     res.status(200).json({ received: true });
+  },
+);
+
+// ─── createCustomizationCheckout ──────────────────────────────────────────────
+// Called by the customer when they accept a quote – creates a Stripe Checkout
+// session for the quoted price and saves the shipping address.
+exports.createCustomizationCheckout = onCall(
+  { secrets: [STRIPE_SECRET_KEY], region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "You must be logged in.");
+    }
+
+    const { requestId, shippingAddress } = request.data;
+    if (!requestId) {
+      throw new HttpsError("invalid-argument", "Missing requestId.");
+    }
+
+    // Fetch the customization request
+    const reqRef = db.collection("customizationRequests").doc(requestId);
+    const reqSnap = await reqRef.get();
+    if (!reqSnap.exists) {
+      throw new HttpsError("not-found", "Customization request not found.");
+    }
+
+    const reqData = reqSnap.data();
+
+    // Only allow payment on "quoted" status
+    if (reqData.status !== "quoted") {
+      throw new HttpsError(
+        "failed-precondition",
+        `Cannot pay for a request with status "${reqData.status}".`,
+      );
+    }
+
+    // Ensure the caller owns this request
+    if (reqData.userId !== request.auth.uid) {
+      throw new HttpsError("permission-denied", "Not your request.");
+    }
+
+    const quotedPrice = Number(reqData.quotedPrice || 0);
+    if (quotedPrice <= 0) {
+      throw new HttpsError("failed-precondition", "Invalid quoted price.");
+    }
+
+    const secretKey = STRIPE_SECRET_KEY.value();
+    if (!secretKey) {
+      throw new HttpsError("internal", "Payment service is not configured.");
+    }
+
+    const stripe = new Stripe(secretKey);
+
+    // Save the shipping address before payment
+    await reqRef.update({
+      shippingAddress: shippingAddress || null,
+    });
+
+    try {
+      const categoryLabel = reqData.category || "Custom Product";
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `Custom Order – ${categoryLabel}`,
+                description: reqData.details
+                  ? reqData.details.substring(0, 200)
+                  : "Customization request",
+              },
+              unit_amount: Math.round(quotedPrice * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        customer_email: reqData.email || reqData.userEmail,
+        success_url: `https://apsara-dd748.web.app/my-customizations?payment=success&rid=${requestId}`,
+        cancel_url: `https://apsara-dd748.web.app/my-customizations?payment=cancelled&rid=${requestId}`,
+        metadata: {
+          customizationRequestId: requestId,
+          userId: request.auth.uid,
+          type: "customization",
+        },
+      });
+
+      // Save the Stripe session ID
+      await reqRef.update({ stripeSessionId: session.id });
+
+      return { url: session.url };
+    } catch (stripeErr) {
+      console.error("Stripe custom checkout failed:", stripeErr.message);
+      throw new HttpsError(
+        "internal",
+        `Payment session failed: ${stripeErr.message}`,
+      );
+    }
+  },
+);
+
+// ─── refundCustomization ──────────────────────────────────────────────────────
+// Called by admin when approving a cancellation request (50% refund after 24h).
+// Also callable by the request owner for self-cancel within 24h (full refund).
+exports.refundCustomization = onCall(
+  { secrets: [STRIPE_SECRET_KEY], region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "You must be logged in.");
+    }
+
+    const { requestId } = request.data;
+    if (!requestId) {
+      throw new HttpsError("invalid-argument", "Missing requestId.");
+    }
+
+    const reqRef = db.collection("customizationRequests").doc(requestId);
+    const reqSnap = await reqRef.get();
+    if (!reqSnap.exists) {
+      throw new HttpsError("not-found", "Customization request not found.");
+    }
+
+    const reqData = reqSnap.data();
+
+    // Check if caller is an admin
+    const adminSnap = await db.collection("admins").doc(request.auth.uid).get();
+    const isAdmin = adminSnap.exists;
+
+    // Check if caller is the request owner
+    const isOwner = reqData.userId === request.auth.uid;
+
+    // Determine if within 24h
+    const acceptedAt = reqData.acceptedAt?.toDate
+      ? reqData.acceptedAt.toDate()
+      : null;
+    const now = new Date();
+    const isWithin24h =
+      acceptedAt && now.getTime() - acceptedAt.getTime() < 24 * 60 * 60 * 1000;
+
+    // Authorization: admin can always refund; owner can only self-cancel within 24h
+    if (!isAdmin && !isOwner) {
+      throw new HttpsError(
+        "permission-denied",
+        "You don't have access to this request.",
+      );
+    }
+    if (isOwner && !isAdmin && !isWithin24h) {
+      throw new HttpsError(
+        "permission-denied",
+        "The 24-hour free cancellation window has expired. Please request cancellation for admin review.",
+      );
+    }
+
+    if (!reqData.stripePaymentIntent) {
+      throw new HttpsError(
+        "failed-precondition",
+        "No payment found for this request.",
+      );
+    }
+
+    const quotedPrice = Number(reqData.quotedPrice || 0);
+    const refundPercent = isWithin24h ? 100 : 50;
+    const refundAmount = Math.round(quotedPrice * (refundPercent / 100) * 100); // in cents
+
+    const stripe = new Stripe(STRIPE_SECRET_KEY.value());
+
+    try {
+      const refund = await stripe.refunds.create({
+        payment_intent: reqData.stripePaymentIntent,
+        amount: refundAmount,
+      });
+
+      // Update the request doc
+      await reqRef.update({
+        status: "cancelled",
+        cancellationRequested: false,
+        cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+        refundId: refund.id,
+        refundAmount: refundAmount / 100,
+        refundPercent,
+      });
+
+      return {
+        success: true,
+        refundPercent,
+        refundAmount: refundAmount / 100,
+        refundId: refund.id,
+      };
+    } catch (err) {
+      console.error("Refund failed:", err.message);
+      throw new HttpsError("internal", `Refund failed: ${err.message}`);
+    }
   },
 );

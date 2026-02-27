@@ -33,6 +33,9 @@ const Product = lazy(() => import("./pages/admin/Product"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const CustomizeRequest = lazy(() => import("./pages/admin/CustomizeRequest"));
 const Users = lazy(() => import("./pages/admin/Users"));
+const Categories = lazy(() => import("./pages/admin/Categories"));
+const ReturnRequests = lazy(() => import("./pages/admin/ReturnRequests"));
+const ReturnPolicy = lazy(() => import("./pages/ReturnPolicy"));
 
 function App() {
   return (
@@ -55,6 +58,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/favorites" element={<Favorites />} />
+          <Route path="/return-policy" element={<ReturnPolicy />} />
 
           {/* 🔐 USER AUTH REQUIRED (still with Navbar/Footer) */}
           <Route
@@ -112,6 +116,8 @@ function App() {
           <Route path="orders" element={<Orders />} />
           <Route path="customize" element={<CustomizeRequest />} />
           <Route path="users" element={<Users />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="returns" element={<ReturnRequests />} />
         </Route>
       </Routes>
     </Suspense>

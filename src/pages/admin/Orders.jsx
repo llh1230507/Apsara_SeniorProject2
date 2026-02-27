@@ -16,21 +16,23 @@ import emailjs from "@emailjs/browser";
 const PAGE_SIZE = 20;
 
 const STATUS_OPTIONS = [
-  { value: "pending",    label: "Pending" },
-  { value: "paid",       label: "Payment Confirmed" },
+  { value: "pending", label: "Pending" },
+  { value: "paid", label: "Payment Confirmed" },
   { value: "processing", label: "Processing" },
-  { value: "shipped",    label: "Shipped" },
-  { value: "completed",  label: "Delivered" },
-  { value: "cancelled",  label: "Cancelled" },
+  { value: "shipped", label: "Shipped" },
+  { value: "completed", label: "Delivered" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "returned", label: "Returned" },
 ];
 
 const STATUS_STYLES = {
-  pending:    "bg-yellow-100 text-yellow-700",
-  paid:       "bg-blue-100 text-blue-700",
+  pending: "bg-yellow-100 text-yellow-700",
+  paid: "bg-blue-100 text-blue-700",
   processing: "bg-purple-100 text-purple-700",
-  shipped:    "bg-indigo-100 text-indigo-700",
-  completed:  "bg-green-100 text-green-700",
-  cancelled:  "bg-red-100 text-red-700",
+  shipped: "bg-indigo-100 text-indigo-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+  returned: "bg-orange-100 text-orange-700",
 };
 
 const STATUS_EMAIL = {
@@ -113,7 +115,9 @@ export default function Orders() {
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadMore = async () => {
@@ -215,9 +219,14 @@ export default function Orders() {
         </div>
         <div className="bg-white rounded shadow overflow-hidden">
           <div className="bg-gray-100 p-3 flex gap-4">
-            {["w-28", "w-24", "w-32", "w-16", "w-20", "w-20", "w-24"].map((w, i) => (
-              <div key={i} className={`h-3 bg-gray-200 rounded ${w} animate-pulse`} />
-            ))}
+            {["w-28", "w-24", "w-32", "w-16", "w-20", "w-20", "w-24"].map(
+              (w, i) => (
+                <div
+                  key={i}
+                  className={`h-3 bg-gray-200 rounded ${w} animate-pulse`}
+                />
+              ),
+            )}
           </div>
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="border-t p-3 flex gap-4 items-center">
@@ -411,7 +420,7 @@ export default function Orders() {
                                   <div className="flex-1 text-sm">
                                     <p className="font-medium">{item.name}</p>
                                     <p className="text-gray-400 text-xs">
-                                      {item.selectedColor} · {item.selectedSize}{" "}
+                                      {item.selectedColor}{" "}
                                       · {item.selectedMaterial}
                                     </p>
                                   </div>

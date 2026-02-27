@@ -7,7 +7,9 @@ import {
   FaShoppingCart,
   FaTools,
   FaSignOutAlt,
-  FaUser
+  FaUser,
+  FaTags,
+  FaUndoAlt,
 } from "react-icons/fa";
 
 export default function AdminSidebar({ isOpen = true }) {
@@ -64,7 +66,11 @@ export default function AdminSidebar({ isOpen = true }) {
           {isOpen && <span>Orders</span>}
         </NavLink>
 
-        <NavLink to="/admin/customize" className={linkClass} title="Customization Requests">
+        <NavLink
+          to="/admin/customize"
+          className={linkClass}
+          title="Customization Requests"
+        >
           <FaTools className="text-lg shrink-0" />
           {isOpen && <span>Customization Requests</span>}
         </NavLink>
@@ -72,6 +78,24 @@ export default function AdminSidebar({ isOpen = true }) {
         <NavLink to="/admin/users" className={linkClass} title="Users">
           <FaUser className="text-lg shrink-0" />
           {isOpen && <span>Users</span>}
+        </NavLink>
+
+        <NavLink
+          to="/admin/categories"
+          className={linkClass}
+          title="Categories"
+        >
+          <FaTags className="text-lg shrink-0" />
+          {isOpen && <span>Categories</span>}
+        </NavLink>
+
+        <NavLink
+          to="/admin/returns"
+          className={linkClass}
+          title="Return Requests"
+        >
+          <FaUndoAlt className="text-lg shrink-0" />
+          {isOpen && <span>Return Requests</span>}
         </NavLink>
       </nav>
 
