@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   deleteDoc,
@@ -7,10 +7,13 @@ import {
   limit,
   orderBy,
   query,
+  startAfter,
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import emailjs from "@emailjs/browser";
+
+const PAGE_SIZE = 20;
 
 const STATUS_OPTIONS = [
   { value: "pending",    label: "Pending" },
@@ -76,29 +79,66 @@ function formatDate(ts) {
 export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const lastDocRef = useRef(null);
   const [expanded, setExpanded] = useState(null);
   const [updating, setUpdating] = useState(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
+    let cancelled = false;
+    setLoading(true);
+    setOrders([]);
+    setHasMore(true);
+    lastDocRef.current = null;
+
+    const run = async () => {
       try {
         const q = query(
           collection(db, "orders"),
           orderBy("createdAt", "desc"),
-          limit(100),
+          limit(PAGE_SIZE),
         );
         const snap = await getDocs(q);
+        if (cancelled) return;
+        lastDocRef.current = snap.docs[snap.docs.length - 1] || null;
+        setHasMore(snap.docs.length === PAGE_SIZE);
         setOrders(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (err) {
         console.error("Failed to load orders:", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
-    fetchOrders();
+
+    run();
+    return () => { cancelled = true; };
   }, []);
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore || !lastDocRef.current) return;
+    setLoadingMore(true);
+    try {
+      const q = query(
+        collection(db, "orders"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastDocRef.current),
+        limit(PAGE_SIZE),
+      );
+      const snap = await getDocs(q);
+      lastDocRef.current = snap.docs[snap.docs.length - 1] || null;
+      setHasMore(snap.docs.length === PAGE_SIZE);
+      setOrders((prev) => [
+        ...prev,
+        ...snap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      ]);
+    } catch (err) {
+      console.error("Failed to load more orders:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleStatusChange = async (orderId, newStatus) => {
     setUpdating(orderId);
@@ -146,11 +186,7 @@ export default function Orders() {
     }
   };
 
-  if (loading) {
-    return <p className="p-6 text-gray-500">Loading orders...</p>;
-  }
-
-  const filtered = (() => {
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return orders;
     return orders.filter((o) => {
@@ -165,7 +201,42 @@ export default function Orders() {
         itemNames.includes(q)
       );
     });
-  })();
+  }, [orders, search]);
+
+  if (loading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="h-7 bg-gray-200 rounded w-24 animate-pulse" />
+          <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
+        </div>
+        <div className="mb-6">
+          <div className="h-9 bg-gray-200 rounded-lg w-full animate-pulse" />
+        </div>
+        <div className="bg-white rounded shadow overflow-hidden">
+          <div className="bg-gray-100 p-3 flex gap-4">
+            {["w-28", "w-24", "w-32", "w-16", "w-20", "w-20", "w-24"].map((w, i) => (
+              <div key={i} className={`h-3 bg-gray-200 rounded ${w} animate-pulse`} />
+            ))}
+          </div>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="border-t p-3 flex gap-4 items-center">
+              <div className="h-3 bg-gray-200 rounded w-28 animate-pulse" />
+              <div className="h-3 bg-gray-200 rounded w-24 animate-pulse" />
+              <div className="space-y-1.5">
+                <div className="h-3 bg-gray-200 rounded w-32 animate-pulse" />
+                <div className="h-2.5 bg-gray-200 rounded w-24 animate-pulse" />
+              </div>
+              <div className="h-3 bg-gray-200 rounded w-10 animate-pulse" />
+              <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+              <div className="h-5 bg-gray-200 rounded-full w-20 animate-pulse" />
+              <div className="h-5 bg-gray-200 rounded w-20 animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -359,6 +430,19 @@ export default function Orders() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {hasMore && !search && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="px-8 py-2.5 border rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loadingMore ? "Loading..." : "Load More"}
+          </button>
         </div>
       )}
     </div>

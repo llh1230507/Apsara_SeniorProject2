@@ -1,9 +1,9 @@
 // src/components/admin/ProductForm.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../../firebase";
 
-const DEFAULT_MATERIAL_PRICE = { standard: 0, premium: 60 };
+const DEFAULT_MATERIAL_PRICE = { standard: "0", premium: "60" };
 
 export default function ProductForm({
   onAdd,
@@ -16,7 +16,7 @@ export default function ProductForm({
   const [category, setCategory] = useState("wood");
   const [description, setDescription] = useState("");
 
-  // ✅ one-size product dimensions
+  // one-size product dimensions
   const [size, setSize] = useState({ width: "", length: "", height: "" });
 
   // color -> image map (Storage URLs)
@@ -28,11 +28,16 @@ export default function ProductForm({
   const [preview, setPreview] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // ✅ material price
+  // material price
   const [materialPrice, setMaterialPrice] = useState(DEFAULT_MATERIAL_PRICE);
 
-  // ✅ 360 frames UI (rows)
-  const [images360, setImages360] = useState([""]);
+  // 360 frames — array of already-uploaded Storage URLs
+  const [images360, setImages360] = useState([]);
+  // pending files selected but not yet uploaded
+  const [frames360Files, setFrames360Files] = useState([]);
+  const [frames360Previews, setFrames360Previews] = useState([]);
+  const [uploading360, setUploading360] = useState(false);
+  const [uploadProgress360, setUploadProgress360] = useState({ done: 0, total: 0 });
 
   const [error, setError] = useState("");
   const [stock, setStock] = useState("");
@@ -56,10 +61,15 @@ export default function ProductForm({
       height: editingProduct.size?.height ?? "",
     });
 
-    setMaterialPrice(editingProduct.materialPrice || DEFAULT_MATERIAL_PRICE);
+    setMaterialPrice({
+      standard: String(editingProduct.materialPrice?.standard ?? 0),
+      premium: String(editingProduct.materialPrice?.premium ?? 60),
+    });
 
     const frames = editingProduct.images360 || [];
-    setImages360(frames.length ? frames : [""]);
+    setImages360(Array.isArray(frames) ? frames : []);
+    setFrames360Files([]);
+    setFrames360Previews([]);
 
     setError("");
     setPreview("");
@@ -113,19 +123,43 @@ export default function ProductForm({
     }
   };
 
-  /* ---------- 360 frames helpers ---------- */
-  const updateFrame = (idx, value) => {
-    setImages360((prev) => prev.map((v, i) => (i === idx ? value : v)));
+  /* ---------- 360 frames — multi-file upload ---------- */
+  const handle360FilesSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setFrames360Files(files);
+    setFrames360Previews(files.map((f) => URL.createObjectURL(f)));
   };
 
-  const addFrameRow = () => setImages360((prev) => [...prev, ""]);
-  const removeFrameRow = (idx) =>
-    setImages360((prev) => prev.filter((_, i) => i !== idx));
+  const upload360Frames = async () => {
+    if (!frames360Files.length) return;
+    setUploading360(true);
+    setUploadProgress360({ done: 0, total: frames360Files.length });
+    const urls = [];
+    try {
+      for (let i = 0; i < frames360Files.length; i++) {
+        const f = frames360Files[i];
+        const ext = f.name.split(".").pop() || "jpg";
+        const uniqueId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const storageRef = ref(storage, `products/360/${uniqueId}_${i}.${ext}`);
+        await uploadBytes(storageRef, f);
+        const url = await getDownloadURL(storageRef);
+        urls.push(url);
+        setUploadProgress360({ done: i + 1, total: frames360Files.length });
+      }
+      setImages360((prev) => [...prev, ...urls]);
+      setFrames360Files([]);
+      setFrames360Previews([]);
+    } catch (err) {
+      setError("360 upload failed: " + err.message);
+    } finally {
+      setUploading360(false);
+    }
+  };
 
-  const cleanedFrames = useMemo(
-    () => images360.map((s) => s.trim()).filter(Boolean),
-    [images360],
-  );
+  const removeFrame360 = (idx) => {
+    setImages360((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   /* ---------- Submit ---------- */
   const handleSubmit = (e) => {
@@ -146,12 +180,6 @@ export default function ProductForm({
     if (Number(materialPrice.standard) < 0 || Number(materialPrice.premium) < 0)
       return setError("Material prices cannot be negative.");
 
-    // ✅ one-size dims are optional, but if you want to require them, uncomment this:
-    // const w = Number(size.width || 0);
-    // const l = Number(size.length || 0);
-    // const h = Number(size.height || 0);
-    // if (w <= 0 || l <= 0 || h <= 0) return setError("Please fill Width/Length/Height > 0.");
-
     const productData = {
       name: name.trim(),
       price: Number(price),
@@ -159,21 +187,17 @@ export default function ProductForm({
       description,
       stock: Number(stock || 0),
 
-      // images
       imageUrl,
       images,
 
-      // ✅ one-size dims
       size: {
         width: Number(size.width || 0),
         length: Number(size.length || 0),
         height: Number(size.height || 0),
       },
 
-      // ✅ optional 360
-      images360: cleanedFrames,
+      images360,
 
-      // ✅ material pricing
       materialPrice: {
         standard: Number(materialPrice.standard || 0),
         premium: Number(materialPrice.premium || 0),
@@ -194,7 +218,9 @@ export default function ProductForm({
     setImages({});
     setImageUrl("");
     setMaterialPrice(DEFAULT_MATERIAL_PRICE);
-    setImages360([""]);
+    setImages360([]);
+    setFrames360Files([]);
+    setFrames360Previews([]);
     setError("");
     setColor("");
     setFile(null);
@@ -389,7 +415,7 @@ export default function ProductForm({
                 onChange={(e) =>
                   setMaterialPrice((p) => ({
                     ...p,
-                    standard: Number(e.target.value),
+                    standard: e.target.value,
                   }))
                 }
               />
@@ -406,7 +432,7 @@ export default function ProductForm({
                 onChange={(e) =>
                   setMaterialPrice((p) => ({
                     ...p,
-                    premium: Number(e.target.value),
+                    premium: e.target.value,
                   }))
                 }
               />
@@ -414,40 +440,100 @@ export default function ProductForm({
           </div>
         </section>
 
-        {/* 360 frames */}
+        {/* 360 frames — multi-file upload */}
         <section className="border rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">360 Frames (URLs)</h3>
-            <button
-              type="button"
-              onClick={addFrameRow}
-              className="text-sm px-3 py-2 border rounded-lg hover:bg-gray-50"
-            >
-              + Add frame
-            </button>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold">360° Frames</h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {images360.length} frame{images360.length !== 1 ? "s" : ""}{" "}
+                uploaded 
+              </p>
+            </div>
+            {images360.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setImages360([])}
+                className="text-xs text-red-600 hover:underline"
+              >
+                Clear all
+              </button>
+            )}
           </div>
 
-          <div className="mt-3 space-y-2">
-            {images360.map((v, idx) => (
-              <div key={idx} className="flex gap-2">
-                <input
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-                  placeholder={`Frame ${idx + 1} URL`}
-                  value={v}
-                  onChange={(e) => updateFrame(idx, e.target.value)}
-                />
-                {images360.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeFrameRow(idx)}
-                    className="text-sm px-3 py-2 border rounded-lg text-red-600 hover:bg-red-50"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
+          {/* File picker */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={uploading360}
+              onChange={handle360FilesSelect}
+              className="text-sm"
+            />
+            {frames360Files.length > 0 && (
+              <button
+                type="button"
+                onClick={upload360Frames}
+                disabled={uploading360}
+                className="px-4 py-2 rounded-lg bg-red-700 text-white text-sm hover:bg-red-800 disabled:opacity-50"
+              >
+                {uploading360
+                  ? `Uploading ${uploadProgress360.done} / ${uploadProgress360.total}...`
+                  : `Upload ${frames360Files.length} frame${frames360Files.length !== 1 ? "s" : ""}`}
+              </button>
+            )}
           </div>
+
+          {/* Pending previews (selected but not yet uploaded) */}
+          {frames360Previews.length > 0 && !uploading360 && (
+            <div className="mt-3">
+              <p className="text-xs text-gray-400 mb-2">
+                Preview — press Upload to save:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {frames360Previews.map((src, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={src}
+                      alt={`pending ${i + 1}`}
+                      className="w-14 h-14 object-cover rounded border border-dashed border-gray-400"
+                    />
+                    <span className="absolute bottom-0 left-0 right-0 text-center text-[10px] bg-black/50 text-white rounded-b">
+                      {i + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Uploaded frames */}
+          {images360.length > 0 && (
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                {images360.map((url, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={url}
+                      alt={`frame ${i + 1}`}
+                      className="w-14 h-14 object-cover rounded border"
+                    />
+                    <span className="absolute bottom-0 left-0 right-0 text-center text-[10px] bg-black/50 text-white rounded-b">
+                      {i + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeFrame360(i)}
+                      className="absolute -top-1.5 -right-1.5 hidden group-hover:flex bg-red-600 text-white rounded-full w-4 h-4 items-center justify-center text-[10px] leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Color images */}
