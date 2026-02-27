@@ -323,8 +323,8 @@ export default function Checkout() {
         }
         await batch.commit();
 
-        clearCart();
         navigate("/order-success");
+        clearCart();
       } else {
         // Stripe flow
         const createCheckoutSession = httpsCallable(
