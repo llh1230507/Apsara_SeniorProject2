@@ -1,4 +1,8 @@
-const { onRequest, onCall } = require("firebase-functions/v2/https");
+const {
+  onRequest,
+  onCall,
+  HttpsError,
+} = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
@@ -13,104 +17,175 @@ const db = admin.firestore();
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
 
-
 // ─── createCheckoutSession ────────────────────────────────────────────────────
 exports.createCheckoutSession = onCall(
   { secrets: [STRIPE_SECRET_KEY], region: "us-central1" },
   async (request) => {
     if (!request.auth) {
-      throw new Error("unauthenticated");
+      throw new HttpsError("unauthenticated", "You must be logged in.");
     }
     const userId = request.auth.uid;
-    const { cartItems, customerInfo } = request.data;
+    const {
+      cartItems,
+      customerInfo,
+      shipping,
+      shippingCarrier,
+      shippingSpeed,
+    } = request.data;
 
     if (!cartItems || cartItems.length === 0) {
-      throw new Error("Cart is empty");
+      throw new HttpsError("invalid-argument", "Cart is empty.");
     }
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY.value());
+    const secretKey = STRIPE_SECRET_KEY.value();
+    if (!secretKey) {
+      console.error("STRIPE_SECRET_KEY is not configured!");
+      throw new HttpsError("internal", "Payment service is not configured.");
+    }
+
+    const stripe = new Stripe(secretKey);
 
     // Calculate subtotal
     const subtotal = cartItems.reduce(
       (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
       0,
     );
+    const shippingCost = Number(shipping || 0);
+    const total = subtotal + shippingCost;
 
     // Save pending order to Firestore first
     const orderRef = db.collection("orders").doc();
     const orderId = orderRef.id;
 
-    await orderRef.set({
-      userId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      status: "pending",
-      subtotal,
-      paymentMethod: "stripe",
-      customer: {
-        fullName: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
-        email: customerInfo.email,
-        phone: customerInfo.phone,
-        houseNumber: customerInfo.houseNumber || "",
-        street: customerInfo.street || "",
-        city: customerInfo.city,
-        province: customerInfo.province || "",
-        country: customerInfo.country,
-        postalCode: customerInfo.postalCode || "",
-      },
-      items: cartItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: Number(item.price),
-        quantity: Number(item.quantity),
-        imageUrl: item.imageUrl || "",
-        category: item.category || "",
-        selectedColor: item.selectedColor || "",
-        selectedSize: item.selectedSize || "",
-        selectedMaterial: item.selectedMaterial || "",
-        variantKey: item.variantKey || "",
-      })),
-    });
+    try {
+      await orderRef.set({
+        userId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        status: "pending",
+        subtotal,
+        shipping: shippingCost,
+        total,
+        shippingCarrier: shippingCarrier || "",
+        shippingSpeed: shippingSpeed || "",
+        paymentMethod: "stripe",
+        customer: {
+          fullName: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
+          email: customerInfo.email,
+          phone: customerInfo.phone,
+          houseNumber: customerInfo.houseNumber || "",
+          street: customerInfo.street || "",
+          city: customerInfo.city,
+          province: customerInfo.province || "",
+          country: customerInfo.country,
+          postalCode: customerInfo.postalCode || "",
+        },
+        items: cartItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity),
+          imageUrl: item.imageUrl || "",
+          category: item.category || "",
+          selectedColor: item.selectedColor || "",
+          selectedSize: item.selectedSize || "",
+          selectedMaterial: item.selectedMaterial || "",
+          variantKey: item.variantKey || "",
+        })),
+      });
+    } catch (firestoreErr) {
+      console.error("Failed to save pending order:", firestoreErr);
+      throw new HttpsError(
+        "internal",
+        "Failed to save order. Please try again.",
+      );
+    }
+
+    // Helper: only keep valid https image URLs (Stripe requires https)
+    const safeImageUrl = (url) => {
+      if (
+        typeof url === "string" &&
+        url.startsWith("https://") &&
+        url.length <= 2048
+      ) {
+        return [url];
+      }
+      return [];
+    };
 
     // Build Stripe line items (amounts in cents)
-    const lineItems = cartItems.map((item) => ({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: item.name,
-          ...(item.imageUrl && item.imageUrl.length <= 2048 ? { images: [item.imageUrl] } : {}),
-          description: [
-            item.category,
-            item.selectedColor,
-            item.selectedSize,
-            item.selectedMaterial,
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        },
-        unit_amount: Math.round(Number(item.price) * 100),
-      },
-      quantity: Number(item.quantity),
-    }));
+    const lineItems = cartItems.map((item) => {
+      const desc = [
+        item.category,
+        item.selectedColor,
+        item.selectedSize,
+        item.selectedMaterial,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: lineItems,
-      customer_email: customerInfo.email,
-      success_url:
-        "https://apsara-dd748.web.app/order-success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: "https://apsara-dd748.web.app/checkout",
-      metadata: {
-        orderId,
-        userId,
-      },
+      return {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: item.name || "Product",
+            ...(safeImageUrl(item.imageUrl).length > 0
+              ? { images: safeImageUrl(item.imageUrl) }
+              : {}),
+            ...(desc ? { description: desc } : {}),
+          },
+          unit_amount: Math.round(Number(item.price) * 100),
+        },
+        quantity: Number(item.quantity),
+      };
     });
 
-    // Store Stripe session ID on the order
-    await orderRef.update({ stripeSessionId: session.id });
+    // Add shipping as a line item if > 0
+    if (shippingCost > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Shipping (${shippingCarrier || "Standard"} – ${shippingSpeed || "standard"})`,
+          },
+          unit_amount: Math.round(shippingCost * 100),
+        },
+        quantity: 1,
+      });
+    }
 
-    return { url: session.url };
+    try {
+      // Create Stripe Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        line_items: lineItems,
+        customer_email: customerInfo.email,
+        success_url:
+          "https://apsara-dd748.web.app/order-success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "https://apsara-dd748.web.app/checkout",
+        metadata: {
+          orderId,
+          userId,
+        },
+      });
+
+      // Store Stripe session ID on the order
+      await orderRef.update({ stripeSessionId: session.id });
+
+      return { url: session.url };
+    } catch (stripeErr) {
+      console.error(
+        "Stripe session creation failed:",
+        stripeErr.message,
+        stripeErr,
+      );
+      // Clean up the pending order
+      await orderRef.delete().catch(() => {});
+      throw new HttpsError(
+        "internal",
+        `Payment session failed: ${stripeErr.message}`,
+      );
+    }
   },
 );
 
