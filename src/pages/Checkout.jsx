@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Navigate, useNavigate, NavLink } from "react-router-dom";
 import { httpsCallable } from "firebase/functions";
 import { addDoc, collection, serverTimestamp, writeBatch, doc, increment, getDoc } from "firebase/firestore";
@@ -177,6 +177,7 @@ export default function Checkout() {
   const { user } = useAuth();
   const { cartItems, clearCart } = useCart();
   const { openAuth } = useAuthModal();
+  const orderPlacedRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("stripe");
@@ -239,7 +240,7 @@ export default function Checkout() {
   }
 
   if (!cartItems || cartItems.length === 0) {
-    return <Navigate to="/products" replace />;
+    if (!orderPlacedRef.current) return <Navigate to="/products" replace />;
   }
 
   const subtotal = cartItems.reduce(
@@ -323,6 +324,7 @@ export default function Checkout() {
         }
         await batch.commit();
 
+        orderPlacedRef.current = true;
         navigate("/order-success");
         clearCart();
       } else {
