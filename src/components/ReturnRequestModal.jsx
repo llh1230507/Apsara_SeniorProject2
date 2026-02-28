@@ -38,7 +38,7 @@ export default function ReturnRequestModal({ open, onClose, order, userId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!reason) return;
+    if (!reason || !details.trim()) return;
 
     setSubmitting(true);
     try {
@@ -186,13 +186,14 @@ export default function ReturnRequestModal({ open, onClose, order, userId }) {
             {/* Details */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Additional details
+                Additional details <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 rows={3}
                 placeholder="Please describe the issue..."
+                required
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200 resize-none"
               />
             </div>
