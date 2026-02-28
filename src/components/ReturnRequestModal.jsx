@@ -45,7 +45,7 @@ export default function ReturnRequestModal({ open, onClose, order, userId }) {
       // 1. Upload photos to Firebase Storage
       const photoUrls = [];
       for (const file of photos) {
-        const path = `returns/${order.id}/${Date.now()}_${file.name}`;
+        const path = `returns/${userId}/${Date.now()}_${file.name}`;
         const storageRef = ref(storage, path);
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
