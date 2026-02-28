@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   collection,
-  getDocs,
+  onSnapshot,
   orderBy,
   query,
   doc,
@@ -44,29 +44,27 @@ export default function ReturnRequests() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectingId, setRejectingId] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [busy, setBusy] = useState({});
 
   useEffect(() => {
-    let cancelled = false;
     setLoading(true);
-    const run = async () => {
-      try {
-        const q = query(
-          collection(db, "returnRequests"),
-          orderBy("createdAt", "desc"),
-        );
-        const snap = await getDocs(q);
-        if (cancelled) return;
+    const q = query(
+      collection(db, "returnRequests"),
+      orderBy("createdAt", "desc"),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
         setRequests(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      } catch (err) {
+        setLoading(false);
+      },
+      (err) => {
         console.error("Failed to load return requests:", err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
+        setLoading(false);
+      },
+    );
+    return () => unsub();
   }, []);
 
   const sendEmail = (request, approved, note = "") => {
@@ -81,10 +79,10 @@ export default function ReturnRequests() {
       : "Your return request has been reviewed";
 
     const message = approved
-      ? `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been approved.\n\nRefund amount: $${formatMoney(request.refundAmount)} (after 15% restocking fee).\n\n${
+      ? `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been approved.\n\nRefund amount: $${formatMoney(request.refundAmount)} (after 15% restocking fee).\n\nBefore we can process your refund, please return the product to our designated address. Once we receive and inspect the returned item, we will proceed with your refund.\n\n${
           request.paymentMethod === "cod"
             ? "Since you paid with Cash on Delivery, please reply to this email with your bank account details or your preferred refund method (bank transfer, mobile wallet, etc.) so we can process your refund."
-            : "The refund will be processed to your original payment method within 5–10 business days."
+            : "Since you paid by card, the refund will be processed to your original card within 5–10 business days. If you do not see the refund after this period, please contact your bank or card provider for assistance."
         }
 \n\nThank you for your patience!`
       : `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been reviewed.\n\nUnfortunately, we are unable to process your return at this time.\n${note ? `\nReason: ${note}\n` : ""}\nIf you have any questions, please contact our support team.\n\nThank you for your understanding.`;
@@ -217,7 +215,7 @@ export default function ReturnRequests() {
   };
 
   const filtered = useMemo(() => {
-    let result = requests;
+    let result = requests.filter((r) => !!r.archived === showArchived);
     if (filterStatus !== "all") {
       result = result.filter((r) => r.status === filterStatus);
     }
@@ -232,7 +230,8 @@ export default function ReturnRequests() {
       );
     }
     return result;
-  }, [requests, search, filterStatus]);
+  }, [requests, search, filterStatus, showArchived]);
+  const archivedCount = requests.filter((r) => !!r.archived).length;
 
   const counts = useMemo(() => {
     const c = { all: requests.length, pending: 0, approved: 0, rejected: 0 };
@@ -241,6 +240,38 @@ export default function ReturnRequests() {
     });
     return c;
   }, [requests]);
+
+  const handleArchive = async (id) => {
+    setBusy((b) => ({ ...b, [id]: true }));
+    try {
+      await updateDoc(doc(db, "returnRequests", id), { archived: true });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to archive request");
+    } finally {
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const handleUnarchive = async (id) => {
+    setBusy((b) => ({ ...b, [id]: true }));
+    try {
+      await updateDoc(doc(db, "returnRequests", id), { archived: false });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to unarchive request");
+    } finally {
+      setBusy((b) => {
+        const next = { ...b };
+        delete next[id];
+        return next;
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -265,14 +296,28 @@ export default function ReturnRequests() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Return Requests</h1>
-        <p className="text-sm text-gray-500">
-          {filtered.length}
-          {filtered.length !== requests.length
-            ? ` / ${requests.length}`
-            : ""}{" "}
-          request{requests.length !== 1 ? "s" : ""}
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold">Return Requests</h1>
+          <p className="text-sm text-gray-500">
+            {filtered.length} {showArchived ? "archived" : "active"} request
+            {filtered.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setShowArchived((v) => !v);
+              setSearch("");
+            }}
+            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition ${
+              showArchived
+                ? "bg-gray-800 text-white border-gray-800"
+                : "bg-white text-gray-600 border-gray-300 hover:border-gray-400"
+            }`}
+          >
+            {showArchived ? "View Active" : `Archived (${archivedCount})`}
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -349,8 +394,49 @@ export default function ReturnRequests() {
                   <p className="text-sm font-semibold text-red-700">
                     Refund: ${formatMoney(req.refundAmount)}
                   </p>
+                  {/* Small archive/unarchive button directly below refund price */}
+                  <div className="mt-1">
+                    {!showArchived && (
+                      <button
+                        type="button"
+                        disabled={busy[req.id]}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleArchive(req.id);
+                        }}
+                        className={`px-2 py-1 rounded font-semibold text-xs border ${
+                          !busy[req.id]
+                            ? "bg-gray-100 text-gray-500 hover:bg-gray-200 border-gray-300"
+                            : "bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed"
+                        }`}
+                        style={{ minWidth: 0 }}
+                      >
+                        {busy[req.id] ? "..." : "Archive"}
+                      </button>
+                    )}
+                    {showArchived && (
+                      <button
+                        type="button"
+                        disabled={busy[req.id]}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUnarchive(req.id);
+                        }}
+                        className={`px-2 py-1 rounded font-semibold text-xs border ${
+                          !busy[req.id]
+                            ? "bg-blue-50 text-blue-500 hover:bg-blue-100 border-blue-200"
+                            : "bg-gray-50 text-gray-300 border-gray-200 cursor-not-allowed"
+                        }`}
+                        style={{ minWidth: 0 }}
+                      >
+                        {busy[req.id] ? "..." : "Unarchive"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Archive/Unarchive button under price */}
 
               {/* Expanded details */}
               {expanded === req.id && (
@@ -474,7 +560,7 @@ export default function ReturnRequests() {
                       )}
 
                       {/* Actions (pending and awaiting_return) */}
-                      {req.status === "pending" && (
+                      {req.status === "pending" && !showArchived && (
                         <div className="space-y-3 pt-2">
                           <div className="flex gap-2">
                             <button
@@ -521,6 +607,34 @@ export default function ReturnRequests() {
                               </button>
                             </div>
                           )}
+                          <button
+                            type="button"
+                            disabled={busy[req.id]}
+                            onClick={() => handleArchive(req.id)}
+                            className={`w-full mt-2 px-3 py-2 rounded font-semibold text-xs ${
+                              !busy[req.id]
+                                ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {busy[req.id] ? "Archiving..." : "Archive"}
+                          </button>
+                        </div>
+                      )}
+                      {showArchived && (
+                        <div className="space-y-3 pt-2">
+                          <button
+                            type="button"
+                            disabled={busy[req.id]}
+                            onClick={() => handleUnarchive(req.id)}
+                            className={`w-full px-3 py-2 rounded font-semibold text-xs ${
+                              !busy[req.id]
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            }`}
+                          >
+                            {busy[req.id] ? "Unarchiving..." : "Unarchive"}
+                          </button>
                         </div>
                       )}
                       {req.status === "awaiting_return" && (
