@@ -13,8 +13,15 @@ service firebase.storage {
            );
     }
 
+
     // Users can upload ONLY into their own folder
     match /customizationRequests/{userId}/{fileName} {
+      allow write: if signedIn() && request.auth.uid == userId;
+      allow read: if true;
+    }
+
+    // Return request images — user can write to their own folder, public read
+    match /returns/{userId}/{fileName} {
       allow write: if signedIn() && request.auth.uid == userId;
       allow read: if true;
     }
