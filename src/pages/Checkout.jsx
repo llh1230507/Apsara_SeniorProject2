@@ -169,10 +169,26 @@ const SPEEDS = [
 ];
 
 // Cambodia: owner-delivered, flat rate, no international carriers
-// const CAMBODIA_SPEEDS = [
-//   { key: "sameday", label: "Same Day Delivery", desc: "Delivered today", price: 5 },
-//   { key: "standard", label: "1–2 Days Delivery", desc: "Delivered in 1–2 days", price: 2 },
-// ];
+const CAMBODIA_SPEEDS = [
+  {
+    key: "sameday",
+    label: "Same Day Delivery",
+    desc: "Delivered today (if ordered before 5pm)",
+    price: 5,
+  },
+  {
+    key: "nextday",
+    label: "Next Day Delivery",
+    desc: "Delivered next day (if ordered after 5pm)",
+    price: 5,
+  },
+  {
+    key: "standard",
+    label: "2–3 Days Delivery",
+    desc: "Delivered in 2–3 days",
+    price: 2,
+  },
+];
 
 // Country → { code, symbol }
 const COUNTRY_CURRENCY = {
@@ -613,26 +629,50 @@ export default function Checkout() {
                   Delivery Speed
                 </p>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {CAMBODIA_SPEEDS.map((s) => (
-                    <button
-                      key={s.key}
-                      type="button"
-                      onClick={() => setCambodiaSpeed(s.key)}
-                      className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 text-left transition ${
-                        cambodiaSpeed === s.key
-                          ? "border-red-600 bg-red-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm">{s.label}</p>
-                        <p className="text-xs text-gray-500">{s.desc}</p>
-                      </div>
-                      <span className="font-semibold text-sm">
-                        {fmt(s.price)}
-                      </span>
-                    </button>
-                  ))}
+                  {CAMBODIA_SPEEDS.filter((s) => {
+                    // Only show 'Same Day' if before cutoff, otherwise show 'Next Day'
+                    if (s.key === "sameday") {
+                      const now = new Date();
+                      const cutoffHour = 12; // 12pm
+                      return now.getHours() < cutoffHour;
+                    }
+                    if (s.key === "nextday") {
+                      const now = new Date();
+                      const cutoffHour = 12;
+                      return now.getHours() >= cutoffHour;
+                    }
+                    return true;
+                  }).map((s) => {
+                    let price = s.price;
+                    const hasFurniture = cartItems.some(
+                      (item) =>
+                        (item.category || "").toLowerCase() === "furniture",
+                    );
+                    if (hasFurniture) {
+                      price =
+                        s.key === "sameday" || s.key === "nextday" ? 20 : 10;
+                    }
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setCambodiaSpeed(s.key)}
+                        className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 text-left transition ${
+                          cambodiaSpeed === s.key
+                            ? "border-red-600 bg-red-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">{s.label}</p>
+                          <p className="text-xs text-gray-500">{s.desc}</p>
+                        </div>
+                        <span className="font-semibold text-sm">
+                          {fmt(price)}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             ) : (
