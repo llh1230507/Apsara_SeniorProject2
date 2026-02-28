@@ -200,7 +200,7 @@ export default function ReturnRequestModal({ open, onClose, order, userId }) {
             {/* Photos */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Photos (optional, max 3)
+                Photos <span className="text-red-500">*</span> (max 3)
               </label>
               <input
                 ref={fileRef}
@@ -209,6 +209,7 @@ export default function ReturnRequestModal({ open, onClose, order, userId }) {
                 multiple
                 onChange={handlePhotos}
                 className="hidden"
+                required
               />
               <button
                 type="button"
@@ -239,12 +240,18 @@ export default function ReturnRequestModal({ open, onClose, order, userId }) {
                   ))}
                 </div>
               )}
+              {/* Show error if no photo selected on submit */}
+              {submitting && photos.length === 0 && (
+                <p className="text-xs text-red-500 mt-2">
+                  Please upload at least one photo.
+                </p>
+              )}
             </div>
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={submitting || !reason}
+              disabled={submitting || !reason || photos.length === 0}
               className="w-full bg-red-700 text-white py-2.5 rounded-lg hover:bg-red-800 transition disabled:opacity-60 disabled:cursor-not-allowed text-sm font-medium"
             >
               {submitting ? "Submitting..." : "Submit Return Request"}
