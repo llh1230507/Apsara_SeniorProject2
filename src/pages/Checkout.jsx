@@ -168,6 +168,12 @@ const SPEEDS = [
   { key: "express", label: "Express", desc: "2–5 business days" },
 ];
 
+// Cambodia: owner-delivered, flat rate, no international carriers
+// const CAMBODIA_SPEEDS = [
+//   { key: "sameday", label: "Same Day Delivery", desc: "Delivered today", price: 5 },
+//   { key: "standard", label: "1–2 Days Delivery", desc: "Delivered in 1–2 days", price: 2 },
+// ];
+
 // Country → { code, symbol }
 const COUNTRY_CURRENCY = {
   Thailand: { code: "THB", symbol: "฿" },
@@ -228,6 +234,11 @@ const COUNTRY_CURRENCY = {
   Peru: { code: "PEN", symbol: "S/" },
 };
 
+// const CAMBODIA_SPEEDS = [
+//   { key: "sameday", label: "Same Day Delivery", desc: "Delivered today", price: 5 },
+//   { key: "standard", label: "1–2 Days Delivery", desc: "Delivered in 1–2 days", price: 2 },
+// ];
+
 export default function Checkout() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -239,6 +250,7 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState("stripe");
   const [carrier, setCarrier] = useState("DHL");
   const [speed, setSpeed] = useState("standard");
+  const [cambodiaSpeed, setCambodiaSpeed] = useState("standard");
   const [exchangeRates, setExchangeRates] = useState({});
   const [form, setForm] = useState({
     firstName: "",
@@ -304,20 +316,39 @@ export default function Checkout() {
     0,
   );
   const region = COUNTRY_REGION[form.country] || "asia";
-  const baseShipping = SHIPPING_RATES[region][speed];
-
-  // Count bulky items (furniture etc.) for surcharge
-  const bulkyCount = cartItems.reduce((count, item) => {
-    if (BULKY_CATEGORIES.includes((item.category || "").toLowerCase())) {
-      return count + Number(item.quantity || 1);
-    }
-    return count;
-  }, 0);
-  const bulkySurcharge =
-    bulkyCount > 0 ? bulkyCount * (BULKY_SURCHARGE[region]?.[speed] || 0) : 0;
-  const shipping = baseShipping + bulkySurcharge;
-  const total = subtotal + shipping;
   const isCambodia = form.country === "Cambodia";
+
+  // Cambodia: flat-rate owner delivery
+  // International: carrier-based with bulky surcharges
+  let shipping,
+    bulkyCount = 0,
+    bulkySurcharge = 0;
+  if (isCambodia) {
+    // Check if cart contains any furniture
+    const hasFurniture = cartItems.some(
+      (item) => (item.category || "").toLowerCase() === "furniture",
+    );
+    let camOption = CAMBODIA_SPEEDS.find((s) => s.key === cambodiaSpeed);
+    if (hasFurniture) {
+      camOption =
+        cambodiaSpeed === "sameday"
+          ? { ...camOption, price: 20 }
+          : { ...camOption, price: 10 };
+    }
+    shipping = camOption ? camOption.price : 2;
+  } else {
+    const baseShipping = SHIPPING_RATES[region][speed];
+    bulkyCount = cartItems.reduce((count, item) => {
+      if (BULKY_CATEGORIES.includes((item.category || "").toLowerCase())) {
+        return count + Number(item.quantity || 1);
+      }
+      return count;
+    }, 0);
+    bulkySurcharge =
+      bulkyCount > 0 ? bulkyCount * (BULKY_SURCHARGE[region]?.[speed] || 0) : 0;
+    shipping = baseShipping + bulkySurcharge;
+  }
+  const total = subtotal + shipping;
 
   // Auto-switch to Stripe when country is not Cambodia
   useEffect(() => {
@@ -325,6 +356,15 @@ export default function Checkout() {
       setPaymentMethod("stripe");
     }
   }, [isCambodia, paymentMethod]);
+
+  // Reset shipping speed when switching to/from Cambodia
+  useEffect(() => {
+    if (isCambodia) {
+      setCambodiaSpeed("standard");
+    } else {
+      setSpeed("standard");
+    }
+  }, [isCambodia]);
 
   // Currency display helpers
   const currencyInfo = COUNTRY_CURRENCY[form.country] || {
@@ -369,8 +409,8 @@ export default function Checkout() {
           subtotal,
           shipping,
           total,
-          shippingCarrier: carrier,
-          shippingSpeed: speed,
+          shippingCarrier: isCambodia ? "Owner Delivery" : carrier,
+          shippingSpeed: isCambodia ? cambodiaSpeed : speed,
           paymentMethod: "cod",
           customer: {
             fullName: `${form.firstName} ${form.lastName}`.trim(),
@@ -421,8 +461,8 @@ export default function Checkout() {
           cartItems,
           customerInfo: form,
           shipping,
-          shippingCarrier: carrier,
-          shippingSpeed: speed,
+          shippingCarrier: isCambodia ? "Owner Delivery" : carrier,
+          shippingSpeed: isCambodia ? cambodiaSpeed : speed,
         });
         window.location.href = result.data.url;
       }
@@ -558,57 +598,101 @@ export default function Checkout() {
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Shipping</h2>
 
-            {/* Carrier */}
-            <p className="text-sm font-medium text-gray-700 mb-2">Carrier</p>
-            <div className="flex gap-3 flex-wrap mb-5">
-              {CARRIERS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setCarrier(c)}
-                  className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition ${
-                    carrier === c
-                      ? "border-red-600 bg-red-50 text-red-700"
-                      : "border-gray-200 text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            {isCambodia ? (
+              /* ── Cambodia: owner delivery ── */
+              <>
+                <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 bg-gray-50 rounded-lg px-4 py-3">
+                  <span className="text-lg">🚚</span>
+                  <span>
+                    Delivered directly by <strong>Apsara</strong> within
+                    Cambodia
+                  </span>
+                </div>
 
-            {/* Speed */}
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Delivery Speed
-            </p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {SPEEDS.map((s) => {
-                const base = SHIPPING_RATES[region][s.key];
-                const surcharge =
-                  bulkyCount > 0
-                    ? bulkyCount * (BULKY_SURCHARGE[region]?.[s.key] || 0)
-                    : 0;
-                const rate = base + surcharge;
-                return (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => setSpeed(s.key)}
-                    className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 text-left transition ${
-                      speed === s.key
-                        ? "border-red-600 bg-red-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <p className="font-semibold text-sm">{s.label}</p>
-                      <p className="text-xs text-gray-500">{s.desc}</p>
-                    </div>
-                    <span className="font-semibold text-sm">{fmt(rate)}</span>
-                  </button>
-                );
-              })}
-            </div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Delivery Speed
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {CAMBODIA_SPEEDS.map((s) => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setCambodiaSpeed(s.key)}
+                      className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 text-left transition ${
+                        cambodiaSpeed === s.key
+                          ? "border-red-600 bg-red-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{s.label}</p>
+                        <p className="text-xs text-gray-500">{s.desc}</p>
+                      </div>
+                      <span className="font-semibold text-sm">
+                        {fmt(s.price)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              /* ── International: carrier + speed ── */
+              <>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Carrier
+                </p>
+                <div className="flex gap-3 flex-wrap mb-5">
+                  {CARRIERS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCarrier(c)}
+                      className={`px-4 py-2 rounded-lg border-2 text-sm font-semibold transition ${
+                        carrier === c
+                          ? "border-red-600 bg-red-50 text-red-700"
+                          : "border-gray-200 text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Delivery Speed
+                </p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {SPEEDS.map((s) => {
+                    const base = SHIPPING_RATES[region][s.key];
+                    const surcharge =
+                      bulkyCount > 0
+                        ? bulkyCount * (BULKY_SURCHARGE[region]?.[s.key] || 0)
+                        : 0;
+                    const rate = base + surcharge;
+                    return (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setSpeed(s.key)}
+                        className={`flex items-start gap-3 border-2 rounded-xl px-4 py-3 text-left transition ${
+                          speed === s.key
+                            ? "border-red-600 bg-red-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">{s.label}</p>
+                          <p className="text-xs text-gray-500">{s.desc}</p>
+                        </div>
+                        <span className="font-semibold text-sm">
+                          {fmt(rate)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Payment Method */}
@@ -727,12 +811,14 @@ export default function Checkout() {
               <span className="text-gray-600">
                 Shipping
                 <span className="ml-1 text-xs text-gray-400">
-                  ({carrier} · {speed === "standard" ? "Standard" : "Express"})
+                  {isCambodia
+                    ? `(${CAMBODIA_SPEEDS.find((s) => s.key === cambodiaSpeed)?.label || "Delivery"})`
+                    : `(${carrier} · ${speed === "standard" ? "Standard" : "Express"})`}
                 </span>
               </span>
               <span className="font-medium">{fmt(shipping)}</span>
             </div>
-            {bulkySurcharge > 0 && (
+            {!isCambodia && bulkySurcharge > 0 && (
               <p className="text-xs text-gray-400 ml-1">
                 Includes {fmt(bulkySurcharge)} surcharge for {bulkyCount}{" "}
                 furniture item{bulkyCount !== 1 ? "s" : ""}
