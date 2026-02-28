@@ -173,13 +173,13 @@ const CAMBODIA_SPEEDS = [
   {
     key: "sameday",
     label: "Same Day Delivery",
-    desc: "Delivered today (if ordered before 5pm)",
+    desc: "Delivered today",
     price: 5,
   },
   {
     key: "nextday",
     label: "Next Day Delivery",
-    desc: "Delivered next day (if ordered after 5pm)",
+    desc: "Delivered next day ",
     price: 5,
   },
   {
