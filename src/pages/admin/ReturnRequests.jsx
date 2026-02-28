@@ -9,7 +9,8 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../../firebase";
+import { db, functions } from "../../firebase";
+import { httpsCallable } from "firebase/functions";
 import emailjs from "@emailjs/browser";
 
 const STATUS_STYLES = {
@@ -80,7 +81,12 @@ export default function ReturnRequests() {
       : "Your return request has been reviewed";
 
     const message = approved
-      ? `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been approved.\n\nRefund amount: $${formatMoney(request.refundAmount)} (after 15% restocking fee).\n\n${request.paymentMethod === "cod" ? "Our team will contact you to arrange the refund via bank transfer." : "The refund will be processed to your original payment method within 5–10 business days."}\n\nThank you for your patience!`
+      ? `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been approved.\n\nRefund amount: $${formatMoney(request.refundAmount)} (after 15% restocking fee).\n\n${
+          request.paymentMethod === "cod"
+            ? "Since you paid with Cash on Delivery, please reply to this email with your bank account details or your preferred refund method (bank transfer, mobile wallet, etc.) so we can process your refund."
+            : "The refund will be processed to your original payment method within 5–10 business days."
+        }
+\n\nThank you for your patience!`
       : `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been reviewed.\n\nUnfortunately, we are unable to process your return at this time.\n${note ? `\nReason: ${note}\n` : ""}\nIf you have any questions, please contact our support team.\n\nThank you for your understanding.`;
 
     emailjs
@@ -93,35 +99,88 @@ export default function ReturnRequests() {
       .catch((err) => console.error("Email failed:", err));
   };
 
+  const refundStripePayment = httpsCallable(functions, "refundStripePayment");
+  // New: two-step approval
   const handleApprove = async (req) => {
     if (
       !window.confirm(
-        `Approve return for order ${req.orderId}? Refund: $${formatMoney(req.refundAmount)}`,
+        `Approve return for order ${req.orderId}? Instruct customer to ship product first. Refund will be issued after you confirm receipt.`,
       )
     )
       return;
     setProcessing(req.id);
     try {
+      // Step 1: Mark as 'awaiting_return' and send instructions
+      await updateDoc(doc(db, "returnRequests", req.id), {
+        status: "awaiting_return",
+        reviewedAt: serverTimestamp(),
+        adminNote: "Return instructions sent. Awaiting product.",
+      });
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === req.id
+            ? {
+                ...r,
+                status: "awaiting_return",
+                adminNote: "Return instructions sent. Awaiting product.",
+              }
+            : r,
+        ),
+      );
+      sendEmail(req, "awaiting_return");
+    } catch (err) {
+      console.error("Failed to approve:", err);
+      alert("Failed to send return instructions.");
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  // New: confirm receipt and issue refund
+  const handleConfirmReceived = async (req) => {
+    if (
+      !window.confirm(
+        `Confirm product received for order ${req.orderId}? Issue refund now?`,
+      )
+    )
+      return;
+    setProcessing(req.id);
+    try {
+      // Stripe refund logic
+      if (req.paymentMethod === "stripe" && req.paymentIntentId) {
+        const result = await refundStripePayment({
+          paymentIntentId: req.paymentIntentId,
+          amount: req.refundAmount,
+        });
+        if (!result.data.success) {
+          alert("Stripe refund failed: " + result.data.error);
+          setProcessing(null);
+          return;
+        }
+      }
       await updateDoc(doc(db, "returnRequests", req.id), {
         status: "approved",
         reviewedAt: serverTimestamp(),
-        adminNote: "Approved",
+        adminNote: "Product received. Refund issued.",
       });
-      // Also update the order status
       await updateDoc(doc(db, "orders", req.orderId), {
         status: "returned",
       });
       setRequests((prev) =>
         prev.map((r) =>
           r.id === req.id
-            ? { ...r, status: "approved", adminNote: "Approved" }
+            ? {
+                ...r,
+                status: "approved",
+                adminNote: "Product received. Refund issued.",
+              }
             : r,
         ),
       );
       sendEmail(req, true);
     } catch (err) {
-      console.error("Failed to approve:", err);
-      alert("Failed to approve return request.");
+      console.error("Failed to confirm receipt/refund:", err);
+      alert("Failed to issue refund.");
     } finally {
       setProcessing(null);
     }
@@ -414,18 +473,18 @@ export default function ReturnRequests() {
                         </div>
                       )}
 
-                      {/* Actions (only for pending) */}
+                      {/* Actions (pending and awaiting_return) */}
                       {req.status === "pending" && (
                         <div className="space-y-3 pt-2">
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleApprove(req)}
                               disabled={processing === req.id}
-                              className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50"
+                              className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
                             >
                               {processing === req.id
                                 ? "Processing..."
-                                : "Approve & Refund"}
+                                : "Send Return Instructions"}
                             </button>
                             <button
                               onClick={() =>
@@ -462,6 +521,19 @@ export default function ReturnRequests() {
                               </button>
                             </div>
                           )}
+                        </div>
+                      )}
+                      {req.status === "awaiting_return" && (
+                        <div className="space-y-3 pt-2">
+                          <button
+                            onClick={() => handleConfirmReceived(req)}
+                            disabled={processing === req.id}
+                            className="w-full bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50"
+                          >
+                            {processing === req.id
+                              ? "Processing..."
+                              : "Confirm Product Received & Issue Refund"}
+                          </button>
                         </div>
                       )}
                     </div>

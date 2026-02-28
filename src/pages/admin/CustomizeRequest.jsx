@@ -670,37 +670,60 @@ export default function CustomizeRequest() {
                         )}
 
                         {/* Cancellation request from customer */}
-                        {r.cancellationRequested && (
-                          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                            <p className="text-xs text-amber-700 font-semibold mb-1.5">
-                              ⚠ Customer requested cancellation
-                            </p>
-                            <div className="flex gap-1.5">
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={() => handleApproveCancellation(r)}
-                                className={`px-2.5 py-1 rounded font-semibold text-xs ${
-                                  !isBusy
-                                    ? "bg-amber-500 text-white hover:bg-amber-600"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                }`}
-                              >
-                                {isBusy ? "..." : "Approve Cancel"}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isBusy}
-                                onClick={() => handleDenyCancellation(r)}
-                                className={`px-2.5 py-1 rounded font-semibold text-xs ${
-                                  !isBusy
-                                    ? "bg-gray-500 text-white hover:bg-gray-600"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                }`}
-                              >
-                                {isBusy ? "..." : "Deny"}
-                              </button>
+                        {r.cancellationRequested &&
+                          r.status !== "cancelled" &&
+                          r.status !== "awaiting_return" && (
+                            <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                              <p className="text-xs text-amber-700 font-semibold mb-1.5">
+                                ⚠ Customer requested cancellation
+                              </p>
+                              <div className="flex gap-1.5">
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleApproveCancellation(r)}
+                                  className={`px-2.5 py-1 rounded font-semibold text-xs ${
+                                    !isBusy
+                                      ? "bg-blue-500 text-white hover:bg-blue-600"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {isBusy ? "..." : "Send Return Instructions"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleDenyCancellation(r)}
+                                  className={`px-2.5 py-1 rounded font-semibold text-xs ${
+                                    !isBusy
+                                      ? "bg-gray-500 text-white hover:bg-gray-600"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                >
+                                  {isBusy ? "..." : "Deny"}
+                                </button>
+                              </div>
                             </div>
+                          )}
+                        {r.status === "awaiting_return" && (
+                          <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-xs text-blue-700 font-semibold mb-1.5">
+                              Awaiting product return from customer
+                            </p>
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => handleConfirmReceived(r)}
+                              className={`px-2.5 py-1 rounded font-semibold text-xs ${
+                                !isBusy
+                                  ? "bg-green-600 text-white hover:bg-green-700"
+                                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              }`}
+                            >
+                              {isBusy
+                                ? "..."
+                                : "Confirm Product Received & Issue Refund"}
+                            </button>
                           </div>
                         )}
 
