@@ -60,7 +60,7 @@ const handleCheckout = () => {
           <div className="flex-1">
             <h2 className="text-xl font-semibold">{item.name}</h2>
             <p className="text-sm text-gray-500">
-              {item.category} • {item.selectedColor} • {item.selectedSize} • {item.selectedMaterial}
+              {item.category} • {item.selectedColor} • {item.selectedMaterial}
             </p>
 
             <p className="text-red-700 font-semibold mt-1">${item.price}</p>
