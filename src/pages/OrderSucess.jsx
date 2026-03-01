@@ -8,6 +8,11 @@ export default function OrderSuccess() {
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
+    if (!sessionId) {
+      // If no session_id, redirect to home or orders page
+      window.location.replace("/orders");
+      return null;
+    }
     if (sessionId) {
       clearCart();
     }
