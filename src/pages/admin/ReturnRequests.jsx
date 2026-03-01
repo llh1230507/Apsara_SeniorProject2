@@ -67,25 +67,31 @@ export default function ReturnRequests() {
     return () => unsub();
   }, []);
 
-  const sendEmail = (request, approved, note = "") => {
+  // Send email for different steps: approval, refund confirmation, rejection
+  const sendEmail = (request, type = "approval", note = "") => {
     const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
     const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
     const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
     const email = request.customer?.email;
     if (!email || !SERVICE_ID) return;
 
-    const subject = approved
-      ? "Your return request has been approved ✅"
-      : "Your return request has been reviewed";
-
-    const message = approved
-      ? `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been approved.\n\nRefund amount: $${formatMoney(request.refundAmount)} (after 15% restocking fee).\n\nBefore we can process your refund, please return the product to our designated address. Once we receive and inspect the returned item, we will proceed with your refund.\n\n${
-          request.paymentMethod === "cod"
-            ? "Since you paid with Cash on Delivery, please reply to this email with your bank account details or your preferred refund method (bank transfer, mobile wallet, etc.) so we can process your refund."
-            : "Since you paid by card, the refund will be processed to your original card within 5–10 business days. If you do not see the refund after this period, please contact your bank or card provider for assistance."
-        }
-\n\nThank you for your patience!`
-      : `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been reviewed.\n\nUnfortunately, we are unable to process your return at this time.\n${note ? `\nReason: ${note}\n` : ""}\nIf you have any questions, please contact our support team.\n\nThank you for your understanding.`;
+    let subject = "";
+    let message = "";
+    if (type === "approval") {
+      subject = "Your return request has been approved ✅";
+      message = `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been approved.\n\nRefund amount: $${formatMoney(request.refundAmount)} (after 15% restocking fee).\n\nBefore we can process your refund, please return the product to our designated address. Once we receive and inspect the returned item, we will proceed with your refund.\n\n${
+        request.paymentMethod === "cod"
+          ? "Since you paid with Cash on Delivery, please reply to this email with your bank account details or your preferred refund method (bank transfer, mobile wallet, etc.) so we can process your refund."
+          : "Since you paid by card, the refund will be processed to your original card within 5–10 business days. If you do not see the refund after this period, please contact your bank or card provider for assistance."
+      }
+\n\nThank you for your patience!`;
+    } else if (type === "refund") {
+      subject = "Your refund has been processed 💸";
+      message = `Hi ${request.customer?.fullName || "there"},\n\nWe have received and inspected your returned product for order #${request.orderId}.\n\nYour refund of $${formatMoney(request.refundAmount)} has been issued to your original payment method.\n\nDepending on your bank or card provider, it may take 5–10 business days for the refund to appear. If you do not see the refund after this period, please contact your bank or card provider for assistance.\n\nThank you for shopping with us!`;
+    } else if (type === "rejection") {
+      subject = "Your return request has been reviewed";
+      message = `Hi ${request.customer?.fullName || "there"},\n\nYour return request for order #${request.orderId} has been reviewed.\n\nUnfortunately, we are unable to process your return at this time.\n${note ? `\nReason: ${note}\n` : ""}\nIf you have any questions, please contact our support team.\n\nThank you for your understanding.`;
+    }
 
     emailjs
       .send(
@@ -125,7 +131,7 @@ export default function ReturnRequests() {
             : r,
         ),
       );
-      sendEmail(req, "awaiting_return");
+      sendEmail(req, "approval");
     } catch (err) {
       console.error("Failed to approve:", err);
       alert("Failed to send return instructions.");
@@ -175,7 +181,7 @@ export default function ReturnRequests() {
             : r,
         ),
       );
-      sendEmail(req, true);
+      sendEmail(req, "refund");
     } catch (err) {
       console.error("Failed to confirm receipt/refund:", err);
       alert("Failed to issue refund.");
@@ -203,7 +209,7 @@ export default function ReturnRequests() {
             : r,
         ),
       );
-      sendEmail(req, false, rejectNote.trim());
+      sendEmail(req, "rejection", rejectNote.trim());
       setRejectingId(null);
       setRejectNote("");
     } catch (err) {
