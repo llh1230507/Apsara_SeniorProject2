@@ -26,6 +26,9 @@ export default function ReturnPolicy() {
               Returns are only available for orders marked as{" "}
               <strong>"Delivered"</strong>.
             </li>
+            <li>
+              If the product is damage within the 7 day period, the refund amount will be based on the serverity of the damage.
+            </li>
           </ul>
         </section>
 
@@ -35,12 +38,8 @@ export default function ReturnPolicy() {
             2. Non-Returnable Items
           </h2>
           <ul className="list-disc pl-6 space-y-2">
-            <li>
-              <strong>Custom / Made-to-order products</strong> are
-              non-refundable.
-            </li>
-            <li>Products that have been damaged by the customer.</li>
             <li>Items returned after the 7-day window.</li>
+            <li>Products that are damaged non-repairable after the 7-day window.</li>
           </ul>
         </section>
 

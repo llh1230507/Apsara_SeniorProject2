@@ -768,37 +768,32 @@ export default function Checkout() {
               </button>
 
               {/* Cash on Delivery */}
-              <button
-                type="button"
-                onClick={() => isCambodia && setPaymentMethod("cod")}
-                disabled={!isCambodia}
-                className={`flex items-center gap-3 border-2 rounded-xl px-4 py-4 text-left transition ${
-                  !isCambodia
-                    ? "border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed"
-                    : paymentMethod === "cod"
+              {isCambodia && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`flex items-center gap-3 border-2 rounded-xl px-4 py-4 text-left transition ${
+                    paymentMethod === "cod"
                       ? "border-red-600 bg-red-50"
                       : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <FaMoneyBillWave
-                  className={`text-xl ${
-                    paymentMethod === "cod" && isCambodia
-                      ? "text-red-600"
-                      : "text-gray-400"
                   }`}
-                />
-                <div>
-                  <p className="font-semibold text-sm">Cash on Delivery</p>
-                  <p className="text-xs text-gray-500">
-                    {isCambodia
-                      ? "Pay with cash upon delivery"
-                      : "Available for Cambodia only"}
-                  </p>
-                </div>
-                {paymentMethod === "cod" && isCambodia && (
-                  <span className="ml-auto w-4 h-4 rounded-full bg-red-600" />
-                )}
-              </button>
+                >
+                  <FaMoneyBillWave
+                    className={`text-xl ${
+                      paymentMethod === "cod" ? "text-red-600" : "text-gray-400"
+                    }`}
+                  />
+                  <div>
+                    <p className="font-semibold text-sm">Cash on Delivery</p>
+                    <p className="text-xs text-gray-500">
+                      Pay with cash upon delivery
+                    </p>
+                  </div>
+                  {paymentMethod === "cod" && (
+                    <span className="ml-auto w-4 h-4 rounded-full bg-red-600" />
+                  )}
+                </button>
+              )}
             </div>
 
             {!isCambodia && (
